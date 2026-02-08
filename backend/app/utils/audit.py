@@ -22,7 +22,7 @@ def log_event(
         event_type=event_type,
         entity_type=entity_type,
         entity_id=entity_id,
-        metadata=metadata,
+        event_metadata=metadata,
         ip_address=ip_address,
         user_agent=user_agent,
     )

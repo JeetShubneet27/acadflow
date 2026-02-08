@@ -11,7 +11,7 @@ class AuditEventOut(BaseModel):
     event_type: str
     entity_type: Optional[str]
     entity_id: Optional[int]
-    metadata: Optional[dict[str, Any]]
+    event_metadata: Optional[dict[str, Any]]
     created_at: datetime
 
     class Config:
@@ -23,7 +23,7 @@ class ActivityEventOut(BaseModel):
     actor_id: Optional[int]
     event_type: str
     summary: str
-    metadata: Optional[dict[str, Any]]
+    event_metadata: Optional[dict[str, Any]]
     created_at: datetime
 
     class Config:

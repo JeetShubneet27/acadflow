@@ -41,7 +41,7 @@ def _ensure_owner_or_faculty(project: Project, user: User) -> None:
 
 
 def _summary_for_event(event: AuditEvent) -> str:
-    metadata = event.metadata or {}
+    metadata = event.event_metadata or {}
     if event.event_type == "project_created":
         return "Project created"
     if event.event_type == "project_visibility_changed":
@@ -117,7 +117,7 @@ def list_activity_feed(
             actor_id=event.actor_id,
             event_type=event.event_type,
             summary=_summary_for_event(event),
-            metadata=event.metadata,
+            event_metadata=event.event_metadata,
             created_at=event.created_at,
         )
         for event in events

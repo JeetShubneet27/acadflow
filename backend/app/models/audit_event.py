@@ -15,7 +15,7 @@ class AuditEvent(Base):
     event_type = Column(String, nullable=False)
     entity_type = Column(String, nullable=True)
     entity_id = Column(Integer, nullable=True)
-    metadata = Column(JSON, nullable=True)
+    event_metadata = Column("metadata", JSON, nullable=True)
     ip_address = Column(String, nullable=True)
     user_agent = Column(Text, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
