@@ -30,4 +30,8 @@ class User(Base):
         foreign_keys="ProjectInvite.inviter_id",
     )
     reviews = relationship("Review", back_populates="reviewer")
-    plagiarism_jobs = relationship("PlagiarismJob", back_populates="submitted_by")
+    plagiarism_jobs = relationship(
+        "PlagiarismJob",
+        back_populates="submitted_by",
+        foreign_keys="PlagiarismJob.submitted_by_id",
+    )
