@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
 import { getToken } from "@/lib/auth";
 import { formatCurrency } from "@/lib/format";
+import { loadRazorpay, openRazorpay } from "@/lib/razorpay";
 
 type Project = {
   id: number;
@@ -48,6 +49,14 @@ type Job = {
   currency: string;
 };
 
+type RazorpayOrder = {
+  key_id: string;
+  order_id: string;
+  amount: number;
+  currency: string;
+  job_id: number;
+};
+
 export default function ProjectDetailPage() {
   const params = useParams();
   const projectId = Number(params.id);
@@ -62,6 +71,7 @@ export default function ProjectDetailPage() {
   const [inviteRole, setInviteRole] = useState("coauthor");
   const [reviewerId, setReviewerId] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [payingJobId, setPayingJobId] = useState<number | null>(null);
 
   const load = async () => {
     try {
@@ -209,6 +219,51 @@ export default function ProjectDetailPage() {
     }
   };
 
+  const handleProjectPayment = async (jobId: number) => {
+    setPayingJobId(jobId);
+    try {
+      const loaded = await loadRazorpay();
+      if (!loaded) {
+        throw new Error("Unable to load payment gateway");
+      }
+      const order = await apiFetch<RazorpayOrder>(
+        `/plagiarism/jobs/${jobId}/razorpay/order`,
+        {
+          method: "POST",
+        },
+      );
+      const options = {
+        key: order.key_id,
+        amount: order.amount,
+        currency: order.currency,
+        name: "AcadFlow",
+        description: "Plagiarism check",
+        order_id: order.order_id,
+        prefill: {
+          email: user?.email,
+          name: user?.full_name,
+        },
+        handler: async (response: {
+          razorpay_order_id: string;
+          razorpay_payment_id: string;
+          razorpay_signature: string;
+        }) => {
+          await apiFetch(`/plagiarism/jobs/${jobId}/razorpay/verify`, {
+            method: "POST",
+            body: JSON.stringify(response),
+          });
+          await load();
+        },
+        theme: { color: "#0f172a" },
+      };
+      openRazorpay(options);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Payment failed");
+    } finally {
+      setPayingJobId(null);
+    }
+  };
+
   if (!user) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
@@ -336,6 +391,15 @@ export default function ProjectDetailPage() {
                     className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700"
                   >
                     Download report
+                  </button>
+                ) : job.payment_status === "pending" ? (
+                  <button
+                    type="button"
+                    onClick={() => handleProjectPayment(job.id)}
+                    disabled={payingJobId === job.id}
+                    className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white disabled:opacity-60"
+                  >
+                    {payingJobId === job.id ? "Opening..." : "Pay now"}
                   </button>
                 ) : (
                   <span className="text-xs text-slate-400">Report pending</span>

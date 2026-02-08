@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
 import { getToken } from "@/lib/auth";
 import { formatCurrency } from "@/lib/format";
+import { loadRazorpay, openRazorpay } from "@/lib/razorpay";
 
 type Job = {
   id: number;
@@ -49,12 +50,6 @@ type RazorpayOrder = {
   job_id: number;
 };
 
-declare global {
-  interface Window {
-    Razorpay?: new (options: Record<string, unknown>) => { open: () => void };
-  }
-}
-
 export default function PlagiarismPage() {
   const { user } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -70,6 +65,7 @@ export default function PlagiarismPage() {
   const [publicStatus, setPublicStatus] = useState<PublicJobStatus | null>(null);
   const [publicContactEmail, setPublicContactEmail] = useState("");
   const [isPaying, setIsPaying] = useState(false);
+  const [payingJobId, setPayingJobId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -96,19 +92,6 @@ export default function PlagiarismPage() {
       setIsLoading(false);
     }
   }, [user]);
-
-  const loadRazorpay = () =>
-    new Promise<boolean>((resolve) => {
-      if (window.Razorpay) {
-        resolve(true);
-        return;
-      }
-      const script = document.createElement("script");
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-      document.body.appendChild(script);
-    });
 
   const handleRequest = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -205,10 +188,6 @@ export default function PlagiarismPage() {
           method: "POST",
         },
       );
-      const RazorpayConstructor = window.Razorpay;
-      if (!RazorpayConstructor) {
-        throw new Error("Payment gateway unavailable");
-      }
       const options = {
         key: order.key_id,
         amount: order.amount,
@@ -237,12 +216,56 @@ export default function PlagiarismPage() {
         },
         theme: { color: "#0f172a" },
       };
-      const razorpay = new RazorpayConstructor(options);
-      razorpay.open();
+      openRazorpay(options);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Payment failed");
     } finally {
       setIsPaying(false);
+    }
+  };
+
+  const handleProjectPayment = async (jobId: number) => {
+    setPayingJobId(jobId);
+    try {
+      const loaded = await loadRazorpay();
+      if (!loaded) {
+        throw new Error("Unable to load payment gateway");
+      }
+      const order = await apiFetch<RazorpayOrder>(
+        `/plagiarism/jobs/${jobId}/razorpay/order`,
+        {
+          method: "POST",
+        },
+      );
+      const options = {
+        key: order.key_id,
+        amount: order.amount,
+        currency: order.currency,
+        name: "AcadFlow",
+        description: "Plagiarism check",
+        order_id: order.order_id,
+        prefill: {
+          email: user?.email,
+          name: user?.full_name,
+        },
+        handler: async (response: {
+          razorpay_order_id: string;
+          razorpay_payment_id: string;
+          razorpay_signature: string;
+        }) => {
+          await apiFetch(`/plagiarism/jobs/${jobId}/razorpay/verify`, {
+            method: "POST",
+            body: JSON.stringify(response),
+          });
+          await load();
+        },
+        theme: { color: "#0f172a" },
+      };
+      openRazorpay(options);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Payment failed");
+    } finally {
+      setPayingJobId(null);
     }
   };
 
@@ -572,6 +595,15 @@ export default function PlagiarismPage() {
                       className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700"
                     >
                       Download report
+                    </button>
+                  ) : job.payment_status === "pending" ? (
+                    <button
+                      type="button"
+                      onClick={() => handleProjectPayment(job.id)}
+                      disabled={payingJobId === job.id}
+                      className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white disabled:opacity-60"
+                    >
+                      {payingJobId === job.id ? "Opening..." : "Pay now"}
                     </button>
                   ) : (
                     <span className="text-xs text-slate-400">

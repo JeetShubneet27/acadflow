@@ -24,6 +24,9 @@ type Job = {
   currency: string;
   payment_reference?: string | null;
   payment_submitted_at?: string | null;
+  payment_provider?: string | null;
+  payment_order_id?: string | null;
+  payment_payment_id?: string | null;
 };
 
 export default function AdminPage() {
@@ -128,10 +131,10 @@ export default function AdminPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">
-          Faculty oversight
+          Admin dashboard
         </h1>
         <p className="text-sm text-slate-600">
-          Manage roles, reviewer assignments, and plagiarism workflows.
+          Manage roles, reviewer assignments, payments, and plagiarism workflows.
         </p>
       </div>
 
@@ -249,6 +252,9 @@ export default function AdminPage() {
                 {formatCurrency(job.amount_cents, job.currency)}
                 {job.requester_email ? ` • ${job.requester_email}` : ""}
                 {job.payment_reference ? ` • UTR ${job.payment_reference}` : ""}
+                {job.payment_provider ? ` • ${job.payment_provider}` : ""}
+                {job.payment_order_id ? ` • Order ${job.payment_order_id}` : ""}
+                {job.payment_payment_id ? ` • Payment ${job.payment_payment_id}` : ""}
               </div>
             </div>
           ))}
