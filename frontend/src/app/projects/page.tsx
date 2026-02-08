@@ -19,12 +19,17 @@ type Invite = {
   project_id: number;
   status: string;
   membership_role: string;
+  expires_at?: string | null;
+  accepted_at?: string | null;
+  rejected_at?: string | null;
+  revoked_at?: string | null;
 };
 
 export default function ProjectsPage() {
   const { user } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [invites, setInvites] = useState<Invite[]>([]);
+  const [inviteHistory, setInviteHistory] = useState<Invite[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -37,6 +42,7 @@ export default function ProjectsPage() {
       ]);
       setProjects(projectData);
       setInvites(inviteData.filter((invite) => invite.status === "pending"));
+      setInviteHistory(inviteData.filter((invite) => invite.status !== "pending"));
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load projects");
@@ -107,6 +113,11 @@ export default function ProjectsPage() {
               >
                 <div>
                   Project #{invite.project_id} • {invite.membership_role}
+                  {invite.expires_at && (
+                    <div className="text-xs text-slate-400">
+                      Expires: {new Date(invite.expires_at).toLocaleString()}
+                    </div>
+                  )}
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -122,6 +133,37 @@ export default function ProjectsPage() {
                     Decline
                   </button>
                 </div>
+              </div>
+            ))}
+          </div>
+        </SectionCard>
+      )}
+      {inviteHistory.length > 0 && (
+        <SectionCard
+          title="Invitation history"
+          description="Track previous invite decisions."
+        >
+          <div className="space-y-3 text-sm text-slate-600">
+            {inviteHistory.map((invite) => (
+              <div
+                key={invite.id}
+                className="rounded-xl border border-slate-200 px-4 py-3"
+              >
+                Project #{invite.project_id} • {invite.membership_role} •{" "}
+                {invite.status}
+                {(invite.accepted_at ||
+                  invite.rejected_at ||
+                  invite.revoked_at) && (
+                  <div className="text-xs text-slate-400">
+                    Updated:{" "}
+                    {new Date(
+                      invite.accepted_at ||
+                        invite.rejected_at ||
+                        invite.revoked_at ||
+                        "",
+                    ).toLocaleString()}
+                  </div>
+                )}
               </div>
             ))}
           </div>

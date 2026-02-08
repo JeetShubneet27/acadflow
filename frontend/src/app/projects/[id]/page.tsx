@@ -18,14 +18,79 @@ type Project = {
 };
 
 type Member = {
+  id: number;
   user_id: number;
   role: string;
+  status: string;
 };
 
 type Draft = {
   id: number;
   version: number;
   original_filename: string;
+  created_at: string;
+};
+
+type DraftLock = {
+  id: number;
+  draft_id: number;
+  locked_by_id: number;
+  status: string;
+  locked_at: string;
+  expires_at: string;
+  released_at?: string | null;
+};
+
+type Invite = {
+  id: number;
+  project_id: number;
+  invitee_id: number;
+  status: string;
+  membership_role: string;
+  expires_at?: string | null;
+  revoked_at?: string | null;
+  accepted_at?: string | null;
+  rejected_at?: string | null;
+};
+
+type Permissions = {
+  can_view: boolean;
+  can_invite: boolean;
+  can_manage_members: boolean;
+  can_change_visibility: boolean;
+  can_upload_drafts: boolean;
+  can_comment: boolean;
+  can_assign_reviewers: boolean;
+};
+
+type Annotation = {
+  id: number;
+  draft_id: number;
+  author_id: number;
+  parent_id?: number | null;
+  anchor_type: string;
+  anchor_data?: Record<string, unknown> | null;
+  body: string;
+  status: string;
+  created_at: string;
+  resolved_at?: string | null;
+  resolved_by_id?: number | null;
+};
+
+type ActivityEvent = {
+  id: number;
+  actor_id?: number | null;
+  event_type: string;
+  summary: string;
+  created_at: string;
+};
+
+type AuditEvent = {
+  id: number;
+  actor_id?: number | null;
+  event_type: string;
+  entity_type?: string | null;
+  entity_id?: number | null;
   created_at: string;
 };
 
@@ -66,6 +131,19 @@ export default function ProjectDetailPage() {
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [permissions, setPermissions] = useState<Permissions | null>(null);
+  const [invites, setInvites] = useState<Invite[]>([]);
+  const [activity, setActivity] = useState<ActivityEvent[]>([]);
+  const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
+  const [draftLocks, setDraftLocks] = useState<Record<number, DraftLock | null>>(
+    {},
+  );
+  const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const [selectedDraftId, setSelectedDraftId] = useState<number | null>(null);
+  const [annotationBody, setAnnotationBody] = useState("");
+  const [annotationAnchorType, setAnnotationAnchorType] = useState("page");
+  const [annotationAnchorValue, setAnnotationAnchorValue] = useState("");
+  const [replyInputs, setReplyInputs] = useState<Record<number, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("coauthor");
@@ -76,19 +154,56 @@ export default function ProjectDetailPage() {
   const load = async () => {
     try {
       setIsLoading(true);
-      const [projectData, memberData, draftData, reviewData, jobData] =
-        await Promise.all([
-          apiFetch<Project>(`/projects/${projectId}`),
-          apiFetch<Member[]>(`/projects/${projectId}/members`),
-          apiFetch<Draft[]>(`/projects/${projectId}/drafts`),
-          apiFetch<Review[]>(`/projects/${projectId}/reviews`),
-          apiFetch<Job[]>(`/plagiarism/jobs`),
-        ]);
+      const [
+        projectData,
+        memberData,
+        draftData,
+        reviewData,
+        jobData,
+        permissionsData,
+        activityData,
+      ] = await Promise.all([
+        apiFetch<Project>(`/projects/${projectId}`),
+        apiFetch<Member[]>(`/projects/${projectId}/members`),
+        apiFetch<Draft[]>(`/projects/${projectId}/drafts`),
+        apiFetch<Review[]>(`/projects/${projectId}/reviews`),
+        apiFetch<Job[]>(`/plagiarism/jobs`),
+        apiFetch<Permissions>(`/projects/${projectId}/permissions`),
+        apiFetch<ActivityEvent[]>(`/projects/${projectId}/activity`),
+      ]);
       setProject(projectData);
       setMembers(memberData);
       setDrafts(draftData);
       setReviews(reviewData);
       setJobs(jobData.filter((job) => job.project_id === projectId));
+      setPermissions(permissionsData);
+      setActivity(activityData);
+      if (!selectedDraftId && draftData.length > 0) {
+        setSelectedDraftId(draftData[0].id);
+      }
+      const inviteResult = await Promise.allSettled([
+        apiFetch<Invite[]>(`/projects/${projectId}/invites`),
+        apiFetch<AuditEvent[]>(`/projects/${projectId}/audit`),
+      ]);
+      if (inviteResult[0].status === "fulfilled") {
+        setInvites(inviteResult[0].value);
+      } else {
+        setInvites([]);
+      }
+      if (inviteResult[1].status === "fulfilled") {
+        setAuditEvents(inviteResult[1].value);
+      } else {
+        setAuditEvents([]);
+      }
+      const lockResults = await Promise.allSettled(
+        draftData.map((draft) => apiFetch<DraftLock>(`/drafts/${draft.id}/lock`)),
+      );
+      const lockMap: Record<number, DraftLock | null> = {};
+      draftData.forEach((draft, index) => {
+        const result = lockResults[index];
+        lockMap[draft.id] = result.status === "fulfilled" ? result.value : null;
+      });
+      setDraftLocks(lockMap);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load project");
@@ -102,6 +217,23 @@ export default function ProjectDetailPage() {
       load();
     }
   }, [projectId]);
+
+  useEffect(() => {
+    const fetchAnnotations = async () => {
+      if (!selectedDraftId) {
+        return;
+      }
+      try {
+        const data = await apiFetch<Annotation[]>(
+          `/drafts/${selectedDraftId}/annotations`,
+        );
+        setAnnotations(data);
+      } catch (err) {
+        setAnnotations([]);
+      }
+    };
+    fetchAnnotations();
+  }, [selectedDraftId]);
 
   const handleInvite = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -117,6 +249,59 @@ export default function ProjectDetailPage() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to send invite");
+    }
+  };
+
+  const handleInviteRevoke = async (inviteId: number) => {
+    try {
+      await apiFetch(`/projects/invites/${inviteId}`, { method: "DELETE" });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to revoke invite");
+    }
+  };
+
+  const handleInviteResend = async (inviteId: number) => {
+    try {
+      await apiFetch(`/projects/invites/${inviteId}/resend`, { method: "POST" });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to resend invite");
+    }
+  };
+
+  const handleMemberRoleChange = async (memberId: number, role: string) => {
+    try {
+      await apiFetch(`/projects/${projectId}/members/${memberId}/role`, {
+        method: "PATCH",
+        body: JSON.stringify({ role }),
+      });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to update role");
+    }
+  };
+
+  const handleMemberStatusChange = async (memberId: number, status: string) => {
+    try {
+      await apiFetch(`/projects/${projectId}/members/${memberId}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to update status");
+    }
+  };
+
+  const handleMemberRemove = async (memberId: number) => {
+    try {
+      await apiFetch(`/projects/${projectId}/members/${memberId}`, {
+        method: "DELETE",
+      });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to remove member");
     }
   };
 
@@ -138,6 +323,107 @@ export default function ProjectDetailPage() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to upload draft");
+    }
+  };
+
+  const handleLockDraft = async (draftId: number) => {
+    try {
+      const lock = await apiFetch<DraftLock>(`/drafts/${draftId}/lock`, {
+        method: "POST",
+      });
+      setDraftLocks((prev) => ({ ...prev, [draftId]: lock }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to lock draft");
+    }
+  };
+
+  const handleUnlockDraft = async (draftId: number) => {
+    try {
+      const lock = await apiFetch<DraftLock>(`/drafts/${draftId}/lock`, {
+        method: "DELETE",
+      });
+      setDraftLocks((prev) => ({ ...prev, [draftId]: lock }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to unlock draft");
+    }
+  };
+
+  const handleAnnotationSubmit = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+    if (!selectedDraftId || !annotationBody) {
+      return;
+    }
+    const anchor_data =
+      annotationAnchorType === "page"
+        ? { page: Number(annotationAnchorValue || 1) }
+        : { text: annotationAnchorValue };
+    try {
+      await apiFetch(`/drafts/${selectedDraftId}/annotations`, {
+        method: "POST",
+        body: JSON.stringify({
+          anchor_type: annotationAnchorType,
+          anchor_data,
+          body: annotationBody,
+        }),
+      });
+      setAnnotationBody("");
+      setAnnotationAnchorValue("");
+      const data = await apiFetch<Annotation[]>(
+        `/drafts/${selectedDraftId}/annotations`,
+      );
+      setAnnotations(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to add annotation");
+    }
+  };
+
+  const handleAnnotationResolve = async (annotationId: number) => {
+    try {
+      await apiFetch(`/annotations/${annotationId}/resolve`, { method: "POST" });
+      if (selectedDraftId) {
+        const data = await apiFetch<Annotation[]>(
+          `/drafts/${selectedDraftId}/annotations`,
+        );
+        setAnnotations(data);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to resolve annotation");
+    }
+  };
+
+  const handleAnnotationReopen = async (annotationId: number) => {
+    try {
+      await apiFetch(`/annotations/${annotationId}/reopen`, { method: "POST" });
+      if (selectedDraftId) {
+        const data = await apiFetch<Annotation[]>(
+          `/drafts/${selectedDraftId}/annotations`,
+        );
+        setAnnotations(data);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to reopen annotation");
+    }
+  };
+
+  const handleAnnotationReply = async (annotationId: number, body: string) => {
+    if (!body) {
+      return;
+    }
+    try {
+      await apiFetch(`/annotations/${annotationId}/replies`, {
+        method: "POST",
+        body: JSON.stringify({ body }),
+      });
+      if (selectedDraftId) {
+        const data = await apiFetch<Annotation[]>(
+          `/drafts/${selectedDraftId}/annotations`,
+        );
+        setAnnotations(data);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to reply");
     }
   };
 
@@ -303,65 +589,339 @@ export default function ProjectDetailPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <SectionCard title="Team members" description="Current collaborators.">
-          <ul className="space-y-2 text-sm text-slate-600">
+          <div className="space-y-3 text-sm text-slate-600">
             {members.map((member) => (
-              <li key={member.user_id}>
-                User #{member.user_id} • {member.role}
-              </li>
+              <div
+                key={member.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2"
+              >
+                <div>
+                  User #{member.user_id} • {member.role} • {member.status}
+                </div>
+                {permissions?.can_manage_members && (
+                  <div className="flex flex-wrap gap-2">
+                    <select
+                      defaultValue={member.role}
+                      onChange={(event) =>
+                        handleMemberRoleChange(member.id, event.target.value)
+                      }
+                      disabled={member.user_id === project.owner_id}
+                      className="rounded-lg border border-slate-300 px-2 py-1 text-xs"
+                    >
+                      <option value="owner">Owner</option>
+                      <option value="coauthor">Co-author</option>
+                    </select>
+                    <select
+                      defaultValue={member.status}
+                      onChange={(event) =>
+                        handleMemberStatusChange(member.id, event.target.value)
+                      }
+                      disabled={member.user_id === project.owner_id}
+                      className="rounded-lg border border-slate-300 px-2 py-1 text-xs"
+                    >
+                      <option value="active">Active</option>
+                      <option value="suspended">Suspended</option>
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => handleMemberRemove(member.id)}
+                      disabled={member.user_id === project.owner_id}
+                      className="rounded-lg border border-slate-300 px-2 py-1 text-xs text-slate-600 disabled:opacity-50"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </div>
             ))}
-          </ul>
+          </div>
         </SectionCard>
-        {(user.role === "faculty" || user.id === project.owner_id) && (
-          <SectionCard title="Invite collaborator">
-            <form onSubmit={handleInvite} className="space-y-3">
-              <input
-                type="email"
-                value={inviteEmail}
-                onChange={(event) => setInviteEmail(event.target.value)}
-                placeholder="Invitee email"
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-                required
-              />
-              <select
-                value={inviteRole}
-                onChange={(event) => setInviteRole(event.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
-              >
-                <option value="coauthor">Co-author</option>
-                <option value="owner">Owner</option>
-              </select>
-              <button
-                type="submit"
-                className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
-              >
-                Send invite
-              </button>
-            </form>
-          </SectionCard>
+        {permissions?.can_invite && (
+          <div className="space-y-4">
+            <SectionCard title="Invite collaborator">
+              <form onSubmit={handleInvite} className="space-y-3">
+                <input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(event) => setInviteEmail(event.target.value)}
+                  placeholder="Invitee email"
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                  required
+                />
+                <select
+                  value={inviteRole}
+                  onChange={(event) => setInviteRole(event.target.value)}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                >
+                  <option value="coauthor">Co-author</option>
+                  <option value="owner">Owner</option>
+                </select>
+                <button
+                  type="submit"
+                  className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+                >
+                  Send invite
+                </button>
+              </form>
+            </SectionCard>
+            {invites.length > 0 && (
+              <SectionCard title="Invitations">
+                <div className="space-y-3 text-sm text-slate-600">
+                  {invites.map((invite) => (
+                    <div
+                      key={invite.id}
+                      className="rounded-xl border border-slate-200 px-3 py-2"
+                    >
+                      <div>
+                        Invitee #{invite.invitee_id} • {invite.membership_role} •{" "}
+                        {invite.status}
+                      </div>
+                      {invite.expires_at && (
+                        <div className="text-xs text-slate-400">
+                          Expires {new Date(invite.expires_at).toLocaleString()}
+                        </div>
+                      )}
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {invite.status === "pending" && (
+                          <button
+                            type="button"
+                            onClick={() => handleInviteRevoke(invite.id)}
+                            className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700"
+                          >
+                            Revoke
+                          </button>
+                        )}
+                        {["expired", "revoked", "rejected"].includes(
+                          invite.status,
+                        ) && (
+                          <button
+                            type="button"
+                            onClick={() => handleInviteResend(invite.id)}
+                            className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white"
+                          >
+                            Resend
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </SectionCard>
+            )}
+          </div>
         )}
       </div>
 
       <SectionCard title="Drafts">
-        <form onSubmit={handleDraftUpload} className="flex flex-wrap gap-3">
-          <input type="file" name="draft" className="text-sm" required />
-          <button
-            type="submit"
-            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
-          >
-            Upload draft
-          </button>
-        </form>
+        {permissions?.can_upload_drafts && (
+          <form onSubmit={handleDraftUpload} className="flex flex-wrap gap-3">
+            <input type="file" name="draft" className="text-sm" required />
+            <button
+              type="submit"
+              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+            >
+              Upload draft
+            </button>
+          </form>
+        )}
         <ul className="mt-4 space-y-2 text-sm text-slate-600">
-          {drafts.map((draft) => (
-            <li key={draft.id}>
-              v{draft.version} • {draft.original_filename}
-            </li>
-          ))}
+          {drafts.map((draft) => {
+            const lock = draftLocks[draft.id];
+            const isLocked = lock?.status === "active";
+            return (
+              <li
+                key={draft.id}
+                className="rounded-xl border border-slate-200 px-3 py-2"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    v{draft.version} • {draft.original_filename}
+                    <div className="text-xs text-slate-400">
+                      {isLocked
+                        ? `Locked by user #${lock?.locked_by_id}`
+                        : "No active lock"}
+                    </div>
+                  </div>
+                  {permissions?.can_upload_drafts && (
+                    <>
+                      {isLocked ? (
+                        <button
+                          type="button"
+                          onClick={() => handleUnlockDraft(draft.id)}
+                          className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700"
+                        >
+                          Release lock
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleLockDraft(draft.id)}
+                          className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white"
+                        >
+                          Lock draft
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+              </li>
+            );
+          })}
           {drafts.length === 0 && (
             <li className="text-slate-400">No drafts uploaded yet.</li>
           )}
         </ul>
       </SectionCard>
+
+      {permissions?.can_comment && (
+        <SectionCard title="Annotations">
+          {drafts.length === 0 ? (
+          <div className="text-sm text-slate-500">
+            Upload a draft to start annotations.
+          </div>
+          ) : (
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-3">
+              <select
+                value={selectedDraftId ?? ""}
+                onChange={(event) =>
+                  setSelectedDraftId(Number(event.target.value))
+                }
+                className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+              >
+                {drafts.map((draft) => (
+                  <option key={draft.id} value={draft.id}>
+                    Draft v{draft.version}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <form onSubmit={handleAnnotationSubmit} className="grid gap-3 md:grid-cols-4">
+              <select
+                value={annotationAnchorType}
+                onChange={(event) => setAnnotationAnchorType(event.target.value)}
+                className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+              >
+                <option value="page">Page</option>
+                <option value="text">Text</option>
+              </select>
+              <input
+                type="text"
+                value={annotationAnchorValue}
+                onChange={(event) => setAnnotationAnchorValue(event.target.value)}
+                placeholder={
+                  annotationAnchorType === "page" ? "Page number" : "Text snippet"
+                }
+                className="rounded-xl border border-slate-300 px-3 py-2 text-sm md:col-span-1"
+              />
+              <input
+                type="text"
+                value={annotationBody}
+                onChange={(event) => setAnnotationBody(event.target.value)}
+                placeholder="Add an annotation"
+                className="rounded-xl border border-slate-300 px-3 py-2 text-sm md:col-span-2"
+              />
+              <button
+                type="submit"
+                className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+              >
+                Add
+              </button>
+            </form>
+            <div className="space-y-3 text-sm text-slate-600">
+              {annotations
+                .filter((annotation) => !annotation.parent_id)
+                .map((annotation) => {
+                  const replies = annotations.filter(
+                    (reply) => reply.parent_id === annotation.id,
+                  );
+                  return (
+                    <div
+                      key={annotation.id}
+                      className="rounded-xl border border-slate-200 px-3 py-2"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          {annotation.anchor_type.toUpperCase()} •{" "}
+                          {annotation.anchor_data
+                            ? JSON.stringify(annotation.anchor_data)
+                            : "General"}
+                        </div>
+                        <div className="text-xs text-slate-400">
+                          {annotation.status}
+                        </div>
+                      </div>
+                      <div className="mt-2">{annotation.body}</div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {annotation.status === "open" ? (
+                          <button
+                            type="button"
+                            onClick={() => handleAnnotationResolve(annotation.id)}
+                            className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700"
+                          >
+                            Resolve
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleAnnotationReopen(annotation.id)}
+                            className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700"
+                          >
+                            Reopen
+                          </button>
+                        )}
+                      </div>
+                      <div className="mt-3 space-y-2">
+                        {replies.map((reply) => (
+                          <div
+                            key={reply.id}
+                            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs"
+                          >
+                            Reply by user #{reply.author_id}: {reply.body}
+                          </div>
+                        ))}
+                        <div className="flex flex-wrap gap-2">
+                          <input
+                            type="text"
+                            value={replyInputs[annotation.id] || ""}
+                            onChange={(event) =>
+                              setReplyInputs((prev) => ({
+                                ...prev,
+                                [annotation.id]: event.target.value,
+                              }))
+                            }
+                            placeholder="Reply"
+                            className="flex-1 rounded-lg border border-slate-300 px-3 py-1 text-xs"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleAnnotationReply(
+                                annotation.id,
+                                replyInputs[annotation.id],
+                              );
+                              setReplyInputs((prev) => ({
+                                ...prev,
+                                [annotation.id]: "",
+                              }));
+                            }}
+                            className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white"
+                          >
+                            Send
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              {annotations.length === 0 && (
+                <div className="text-slate-400">No annotations yet.</div>
+              )}
+            </div>
+          </div>
+          )}
+        </SectionCard>
+      )}
 
       <SectionCard title="Plagiarism checks">
         <form onSubmit={handlePlagiarism} className="flex flex-wrap gap-3">
@@ -414,7 +974,7 @@ export default function ProjectDetailPage() {
       </SectionCard>
 
       <SectionCard title="Reviews">
-        {user.role === "faculty" && (
+        {permissions?.can_assign_reviewers && (
           <form onSubmit={handleAssignReviewer} className="flex flex-wrap gap-3">
             <input
               type="number"
@@ -444,6 +1004,47 @@ export default function ProjectDetailPage() {
           )}
         </ul>
       </SectionCard>
+
+      <SectionCard title="Activity feed">
+        <div className="space-y-2 text-sm text-slate-600">
+          {activity.map((event) => (
+            <div key={event.id} className="rounded-xl border border-slate-200 px-3 py-2">
+              <div className="font-medium text-slate-900">{event.summary}</div>
+              <div className="text-xs text-slate-400">
+                User #{event.actor_id ?? "System"} •{" "}
+                {new Date(event.created_at).toLocaleString()}
+              </div>
+            </div>
+          ))}
+          {activity.length === 0 && (
+            <div className="text-slate-400">No activity yet.</div>
+          )}
+        </div>
+      </SectionCard>
+
+      {(permissions?.can_manage_members || user.role === "faculty") && (
+        <SectionCard title="Audit log">
+          <div className="space-y-2 text-sm text-slate-600">
+            {auditEvents.map((event) => (
+              <div
+                key={event.id}
+                className="rounded-xl border border-slate-200 px-3 py-2"
+              >
+                <div className="font-medium text-slate-900">
+                  {event.event_type.replace(/_/g, " ")}
+                </div>
+                <div className="text-xs text-slate-400">
+                  User #{event.actor_id ?? "System"} •{" "}
+                  {new Date(event.created_at).toLocaleString()}
+                </div>
+              </div>
+            ))}
+            {auditEvents.length === 0 && (
+              <div className="text-slate-400">No audit events yet.</div>
+            )}
+          </div>
+        </SectionCard>
+      )}
     </div>
   );
 }

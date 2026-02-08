@@ -39,6 +39,10 @@ export default function AdminPage() {
   const [assignReviewerId, setAssignReviewerId] = useState("");
   const [paymentJobId, setPaymentJobId] = useState("");
   const [paymentStatus, setPaymentStatus] = useState("pending");
+  const [cleanupResult, setCleanupResult] = useState<{
+    expired_invites: number;
+    expired_locks: number;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = async () => {
@@ -85,6 +89,19 @@ export default function AdminPage() {
       setAssignReviewerId("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to assign reviewer");
+    }
+  };
+
+  const handleCleanup = async () => {
+    try {
+      const response = await apiFetch<{
+        expired_invites: number;
+        expired_locks: number;
+      }>("/maintenance/cleanup", { method: "POST" });
+      setCleanupResult(response);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to run cleanup");
     }
   };
 
@@ -223,6 +240,24 @@ export default function AdminPage() {
               Update payment
             </button>
           </form>
+        </SectionCard>
+        <SectionCard title="Maintenance cleanup">
+          <p className="text-xs text-slate-500">
+            Expire stale invites and draft locks.
+          </p>
+          <button
+            type="button"
+            onClick={handleCleanup}
+            className="mt-3 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+          >
+            Run cleanup
+          </button>
+          {cleanupResult && (
+            <div className="mt-3 text-xs text-slate-600">
+              Expired invites: {cleanupResult.expired_invites} • Expired locks:{" "}
+              {cleanupResult.expired_locks}
+            </div>
+          )}
         </SectionCard>
       </div>
 
