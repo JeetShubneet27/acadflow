@@ -9,3 +9,4 @@ pydantic-settings
 email-validator
 razorpay
 alembic
+argon2-cffi
