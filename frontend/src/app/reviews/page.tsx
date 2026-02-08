@@ -39,7 +39,7 @@ export default function ReviewsPage() {
   };
 
   useEffect(() => {
-    if (user?.role === "reviewer") {
+    if (user?.role === "faculty") {
       load();
     } else {
       setIsLoading(false);
@@ -73,14 +73,14 @@ export default function ReviewsPage() {
     );
   }
 
-  if (user.role !== "reviewer") {
+  if (user.role !== "faculty") {
     return (
       <SectionCard
-        title="Reviewer workspace"
-        description="Only reviewers can access assigned review submissions."
+        title="Faculty reviewer workspace"
+        description="Only faculty can access assigned review submissions."
       >
         <div className="text-sm text-slate-600">
-          Switch to a reviewer role to access this page.
+          Faculty members can accept and submit review assignments.
         </div>
       </SectionCard>
     );
@@ -89,7 +89,7 @@ export default function ReviewsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Reviews</h1>
+        <h1 className="text-2xl font-semibold text-slate-900">Faculty reviews</h1>
         <p className="text-sm text-slate-600">
           Submit scores and feedback for assigned manuscripts.
         </p>

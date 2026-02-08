@@ -7,7 +7,7 @@ export default function Home() {
             Production-grade research workflows
           </p>
           <h1 className="text-4xl font-semibold leading-tight text-slate-900 md:text-5xl">
-            AcadFlow keeps research teams, reviewers, and faculty aligned.
+            AcadFlow keeps research teams and faculty reviewers aligned.
           </h1>
           <p className="text-lg text-slate-600">
             Manage projects, collaborate on drafts, request human-reviewed plagiarism
@@ -32,7 +32,7 @@ export default function Home() {
           {[
             "Versioned drafts with project visibility controls.",
             "Human-in-the-loop plagiarism workflows with audit trails.",
-            "Role-based dashboards for authors, reviewers, and faculty.",
+            "Role-based dashboards for authors and faculty reviewers.",
             "Secure review assignment and structured feedback.",
           ].map((item) => (
             <div

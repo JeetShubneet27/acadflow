@@ -158,7 +158,6 @@ export default function AdminPage() {
               className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
             >
               <option value="student">Student</option>
-              <option value="reviewer">Reviewer</option>
               <option value="faculty">Faculty</option>
             </select>
             <button

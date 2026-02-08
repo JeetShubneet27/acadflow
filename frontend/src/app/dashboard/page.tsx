@@ -45,7 +45,7 @@ export default function DashboardPage() {
         ]);
         setProjects(projectData);
         setJobs(jobData);
-        if (user.role === "reviewer") {
+        if (user.role === "faculty") {
           const reviewData = await apiFetch<Review[]>("/reviews/assigned");
           setReviews(reviewData);
         }
@@ -105,7 +105,7 @@ export default function DashboardPage() {
           description="Your pending and submitted reviews."
         >
           <div className="text-3xl font-semibold text-slate-900">
-            {user.role === "reviewer" ? reviews.length : "—"}
+            {user.role === "faculty" ? reviews.length : "—"}
           </div>
         </SectionCard>
       </div>

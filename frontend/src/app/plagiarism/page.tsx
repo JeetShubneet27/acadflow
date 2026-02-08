@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import QRCode from "qrcode";
 import SectionCard from "@/components/SectionCard";
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
@@ -42,14 +41,19 @@ type PublicJobStatus = {
   completed_at?: string;
 };
 
-type PaymentDetails = {
-  job_id: number;
-  amount_cents: number;
+type RazorpayOrder = {
+  key_id: string;
+  order_id: string;
+  amount: number;
   currency: string;
-  upi_vpa: string;
-  payee_name: string;
-  upi_uri: string;
+  job_id: number;
 };
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: Record<string, unknown>) => { open: () => void };
+  }
+}
 
 export default function PlagiarismPage() {
   const { user } = useAuth();
@@ -64,11 +68,8 @@ export default function PlagiarismPage() {
   const [publicLookupId, setPublicLookupId] = useState("");
   const [publicLookupToken, setPublicLookupToken] = useState("");
   const [publicStatus, setPublicStatus] = useState<PublicJobStatus | null>(null);
-  const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(
-    null,
-  );
-  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
-  const [paymentReference, setPaymentReference] = useState("");
+  const [publicContactEmail, setPublicContactEmail] = useState("");
+  const [isPaying, setIsPaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -96,24 +97,18 @@ export default function PlagiarismPage() {
     }
   }, [user]);
 
-  useEffect(() => {
-    if (!paymentDetails?.upi_uri) {
-      setQrDataUrl(null);
-      return;
-    }
-    QRCode.toDataURL(paymentDetails.upi_uri)
-      .then((url) => setQrDataUrl(url))
-      .catch(() => setQrDataUrl(null));
-  }, [paymentDetails]);
-
-  const fetchPaymentDetails = async (jobId: number, accessToken: string) => {
-    const response = await apiFetch<PaymentDetails>(
-      `/plagiarism/public-jobs/${jobId}/payment-details?access_token=${encodeURIComponent(
-        accessToken,
-      )}`,
-    );
-    setPaymentDetails(response);
-  };
+  const loadRazorpay = () =>
+    new Promise<boolean>((resolve) => {
+      if (window.Razorpay) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
 
   const handleRequest = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -164,8 +159,7 @@ export default function PlagiarismPage() {
       setPublicLookupId(String(response.id));
       setPublicLookupToken(response.access_token);
       setPublicStatus(null);
-      setPaymentReference("");
-      await fetchPaymentDetails(response.id, response.access_token);
+      setPublicContactEmail(publicEmail);
       form.reset();
       setPublicEmail("");
       setPublicName("");
@@ -185,7 +179,6 @@ export default function PlagiarismPage() {
         )}`,
       );
       setPublicStatus(response);
-      await fetchPaymentDetails(Number(publicLookupId), publicLookupToken);
       setError(null);
     } catch (err) {
       setError(
@@ -194,26 +187,62 @@ export default function PlagiarismPage() {
     }
   };
 
-  const handlePublicPaymentReference = async () => {
-    if (!paymentReference || !publicLookupId || !publicLookupToken) {
+  const handlePublicPayment = async () => {
+    if (!publicLookupId || !publicLookupToken) {
       return;
     }
+    setIsPaying(true);
     try {
-      await apiFetch(
-        `/plagiarism/public-jobs/${publicLookupId}/payment-reference?access_token=${encodeURIComponent(
+      const loaded = await loadRazorpay();
+      if (!loaded) {
+        throw new Error("Unable to load payment gateway");
+      }
+      const order = await apiFetch<RazorpayOrder>(
+        `/plagiarism/public-jobs/${publicLookupId}/razorpay/order?access_token=${encodeURIComponent(
           publicLookupToken,
         )}`,
         {
           method: "POST",
-          body: JSON.stringify({ reference: paymentReference, method: "upi" }),
         },
       );
-      setPaymentReference("");
-      await handlePublicLookup();
+      const RazorpayConstructor = window.Razorpay;
+      if (!RazorpayConstructor) {
+        throw new Error("Payment gateway unavailable");
+      }
+      const options = {
+        key: order.key_id,
+        amount: order.amount,
+        currency: order.currency,
+        name: "AcadFlow",
+        description: "Plagiarism check",
+        order_id: order.order_id,
+        prefill: {
+          email: publicContactEmail || publicEmail,
+        },
+        handler: async (response: {
+          razorpay_order_id: string;
+          razorpay_payment_id: string;
+          razorpay_signature: string;
+        }) => {
+          await apiFetch(
+            `/plagiarism/public-jobs/${order.job_id}/razorpay/verify?access_token=${encodeURIComponent(
+              publicLookupToken,
+            )}`,
+            {
+              method: "POST",
+              body: JSON.stringify(response),
+            },
+          );
+          await handlePublicLookup();
+        },
+        theme: { color: "#0f172a" },
+      };
+      const razorpay = new RazorpayConstructor(options);
+      razorpay.open();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Unable to submit payment reference",
-      );
+      setError(err instanceof Error ? err.message : "Payment failed");
+    } finally {
+      setIsPaying(false);
     }
   };
 
@@ -371,44 +400,20 @@ export default function PlagiarismPage() {
               </div>
               <div>ETA: {publicResponse.eta_hours} hours</div>
             </div>
-            {paymentDetails && (
-              <div className="mt-4 grid gap-4 rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-600 md:grid-cols-[160px_1fr]">
-                <div className="flex items-center justify-center">
-                  {qrDataUrl ? (
-                    <img
-                      src={qrDataUrl}
-                      alt="UPI QR code"
-                      className="h-36 w-36 rounded-lg border border-slate-200 bg-white p-2"
-                    />
-                  ) : (
-                    <div className="text-xs text-slate-400">QR loading...</div>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <div className="font-semibold text-slate-900">
-                    Pay via UPI
-                  </div>
-                  <div>Payee: {paymentDetails.payee_name}</div>
-                  <div>UPI ID: {paymentDetails.upi_vpa}</div>
-                  <div>
-                    Amount:{" "}
-                    {formatCurrency(
-                      paymentDetails.amount_cents,
-                      paymentDetails.currency,
-                    )}
-                  </div>
-                  <a
-                    href={paymentDetails.upi_uri}
-                    className="inline-flex items-center rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white"
-                  >
-                    Open UPI app
-                  </a>
-                  <div className="text-[11px] text-slate-400">
-                    After payment, submit your UTR to verify.
-                  </div>
-                </div>
-              </div>
-            )}
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={handlePublicPayment}
+                disabled={isPaying}
+                className="rounded-full bg-slate-900 px-5 py-2 text-xs font-semibold text-white disabled:opacity-60"
+              >
+                {isPaying ? "Opening gateway..." : "Pay with Razorpay"}
+              </button>
+              <p className="text-[11px] text-slate-400">
+                Pay via UPI, card, or netbanking. You will be redirected after
+                payment.
+              </p>
+            </div>
           </div>
         )}
       </SectionCard>
@@ -469,60 +474,21 @@ export default function PlagiarismPage() {
         )}
         {publicStatus &&
           publicStatus.payment_status === "pending" &&
-          paymentDetails && (
-            <div className="mt-3 grid gap-4 rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-600 md:grid-cols-[160px_1fr]">
-              <div className="flex items-center justify-center">
-                {qrDataUrl ? (
-                  <img
-                    src={qrDataUrl}
-                    alt="UPI QR code"
-                    className="h-32 w-32 rounded-lg border border-slate-200 bg-white p-2"
-                  />
-                ) : (
-                  <div className="text-xs text-slate-400">QR loading...</div>
-                )}
-              </div>
-              <div className="space-y-2">
-                <div className="font-semibold text-slate-900">Pay via UPI</div>
-                <div>Payee: {paymentDetails.payee_name}</div>
-                <div>UPI ID: {paymentDetails.upi_vpa}</div>
-                <div>
-                  Amount:{" "}
-                  {formatCurrency(
-                    paymentDetails.amount_cents,
-                    paymentDetails.currency,
-                  )}
-                </div>
-                <a
-                  href={paymentDetails.upi_uri}
-                  className="inline-flex items-center rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white"
-                >
-                  Open UPI app
-                </a>
-              </div>
+          !publicStatus.report_filename && (
+            <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-600">
+              <button
+                type="button"
+                onClick={handlePublicPayment}
+                disabled={isPaying}
+                className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white disabled:opacity-60"
+              >
+                {isPaying ? "Opening gateway..." : "Pay with Razorpay"}
+              </button>
+              <span className="text-[11px] text-slate-400">
+                Complete payment to access the report once it is ready.
+              </span>
             </div>
           )}
-        {publicStatus && publicStatus.payment_status === "pending" && (
-          <div className="mt-3 grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600">
-            <div className="font-semibold text-slate-900">
-              Submit payment reference
-            </div>
-            <input
-              type="text"
-              value={paymentReference}
-              onChange={(event) => setPaymentReference(event.target.value)}
-              placeholder="Enter UTR / Transaction ID"
-              className="rounded-lg border border-slate-300 px-3 py-2 text-xs"
-            />
-            <button
-              type="button"
-              onClick={handlePublicPaymentReference}
-              className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white"
-            >
-              Submit UTR
-            </button>
-          </div>
-        )}
       </SectionCard>
 
       {user && (
