@@ -68,6 +68,12 @@ export default function Navigation() {
           ) : (
             <>
               <Link
+                href="/plagiarism"
+                className="text-sm font-medium text-slate-600 hover:text-slate-900"
+              >
+                Plagiarism check
+              </Link>
+              <Link
                 href="/login"
                 className="text-sm font-medium text-slate-600 hover:text-slate-900"
               >

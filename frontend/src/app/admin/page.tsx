@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import SectionCard from "@/components/SectionCard";
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
+import { formatCurrency } from "@/lib/format";
 
 type Project = {
   id: number;
@@ -13,9 +14,14 @@ type Project = {
 
 type Job = {
   id: number;
-  project_id: number;
+  project_id?: number | null;
   status: string;
   original_filename: string;
+  is_public: boolean;
+  requester_email?: string | null;
+  payment_status: string;
+  amount_cents: number;
+  currency: string;
 };
 
 export default function AdminPage() {
@@ -26,6 +32,8 @@ export default function AdminPage() {
   const [role, setRole] = useState("student");
   const [assignProjectId, setAssignProjectId] = useState("");
   const [assignReviewerId, setAssignReviewerId] = useState("");
+  const [paymentJobId, setPaymentJobId] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState("pending");
   const [error, setError] = useState<string | null>(null);
 
   const load = async () => {
@@ -72,6 +80,24 @@ export default function AdminPage() {
       setAssignReviewerId("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to assign reviewer");
+    }
+  };
+
+  const handlePaymentUpdate = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+    try {
+      await apiFetch(`/plagiarism/jobs/${paymentJobId}/payment`, {
+        method: "PUT",
+        body: JSON.stringify({ status: paymentStatus }),
+      });
+      setPaymentJobId("");
+      await load();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to update payment status",
+      );
     }
   };
 
@@ -167,6 +193,33 @@ export default function AdminPage() {
             </button>
           </form>
         </SectionCard>
+        <SectionCard title="Update payment status">
+          <form onSubmit={handlePaymentUpdate} className="space-y-3">
+            <input
+              type="number"
+              value={paymentJobId}
+              onChange={(event) => setPaymentJobId(event.target.value)}
+              placeholder="Job ID"
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+              required
+            />
+            <select
+              value={paymentStatus}
+              onChange={(event) => setPaymentStatus(event.target.value)}
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+            >
+              <option value="pending">Pending</option>
+              <option value="paid">Paid</option>
+              <option value="waived">Waived</option>
+            </select>
+            <button
+              type="submit"
+              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+            >
+              Update payment
+            </button>
+          </form>
+        </SectionCard>
       </div>
 
       <SectionCard title="All projects">
@@ -186,7 +239,15 @@ export default function AdminPage() {
         <div className="space-y-2 text-sm text-slate-600">
           {jobs.map((job) => (
             <div key={job.id} className="rounded-xl border border-slate-200 px-3 py-2">
-              Job #{job.id} • Project #{job.project_id} • {job.status}
+              <div className="font-medium text-slate-900">
+                Job #{job.id} • {job.is_public ? "Public" : `Project #${job.project_id}`} •{" "}
+                {job.status}
+              </div>
+              <div className="text-xs text-slate-500">
+                Payment: {job.payment_status} •{" "}
+                {formatCurrency(job.amount_cents, job.currency)}
+                {job.requester_email ? ` • ${job.requester_email}` : ""}
+              </div>
             </div>
           ))}
           {jobs.length === 0 && (

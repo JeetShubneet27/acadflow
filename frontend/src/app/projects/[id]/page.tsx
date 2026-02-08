@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import SectionCard from "@/components/SectionCard";
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
+import { getToken } from "@/lib/auth";
+import { formatCurrency } from "@/lib/format";
 
 type Project = {
   id: number;
@@ -36,11 +38,14 @@ type Review = {
 
 type Job = {
   id: number;
-  project_id: number;
+  project_id?: number | null;
   status: string;
   eta_hours: number;
   original_filename: string;
   report_filename?: string;
+  payment_status: string;
+  amount_cents: number;
+  currency: string;
 };
 
 export default function ProjectDetailPage() {
@@ -150,6 +155,38 @@ export default function ProjectDetailPage() {
       setError(
         err instanceof Error ? err.message : "Unable to request plagiarism",
       );
+    }
+  };
+
+  const downloadReport = async (jobId: number, filename?: string) => {
+    const baseUrl =
+      process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+    const token = getToken();
+    if (!token) {
+      setError("You must be logged in to download reports.");
+      return;
+    }
+    try {
+      const response = await fetch(
+        `${baseUrl}/plagiarism/jobs/${jobId}/report`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      if (!response.ok) {
+        throw new Error("Unable to download report");
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename || `plagiarism-report-${jobId}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to download report");
     }
   };
 
@@ -284,7 +321,26 @@ export default function ProjectDetailPage() {
         <ul className="mt-4 space-y-2 text-sm text-slate-600">
           {jobs.map((job) => (
             <li key={job.id}>
-              Job #{job.id} • {job.status} • {job.original_filename}
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2">
+                <div>
+                  Job #{job.id} • {job.status} • {job.original_filename}
+                  <div className="text-xs text-slate-400">
+                    Payment: {job.payment_status} •{" "}
+                    {formatCurrency(job.amount_cents, job.currency)}
+                  </div>
+                </div>
+                {job.report_filename ? (
+                  <button
+                    type="button"
+                    onClick={() => downloadReport(job.id, job.report_filename)}
+                    className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700"
+                  >
+                    Download report
+                  </button>
+                ) : (
+                  <span className="text-xs text-slate-400">Report pending</span>
+                )}
+              </div>
             </li>
           ))}
           {jobs.length === 0 && (

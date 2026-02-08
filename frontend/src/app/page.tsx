@@ -56,6 +56,15 @@ export default function Home() {
             <li>• Audit-friendly version histories.</li>
           </ul>
         </div>
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-slate-900">Transparent pricing</h3>
+          <p className="mt-2 text-sm text-slate-600">
+            Human-reviewed plagiarism checks start at $25 per submission.
+          </p>
+          <p className="mt-2 text-xs text-slate-500">
+            Faculty can waive or adjust payment status per job.
+          </p>
+        </div>
         <div className="rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-900 to-slate-700 p-6 text-sm text-white shadow-sm">
           <h3 className="text-lg font-semibold">Ready to pilot AcadFlow?</h3>
           <p className="mt-2 text-slate-100">

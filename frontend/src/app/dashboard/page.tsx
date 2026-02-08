@@ -14,7 +14,7 @@ type Project = {
 
 type PlagiarismJob = {
   id: number;
-  project_id: number;
+  project_id?: number | null;
   status: string;
   eta_hours: number;
   original_filename: string;

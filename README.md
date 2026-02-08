@@ -60,6 +60,13 @@ Environment variables (see `frontend/.env.example`):
 3. Faculty performs external Turnitin review
 4. Faculty uploads a report to mark job `completed`
 
+### Public plagiarism submissions
+
+AcadFlow supports public (non-authenticated) plagiarism submissions. The system
+issues a job ID and access token so the submitter can check status and download
+the report later. Pricing is stored per job and faculty can update payment
+status (pending/paid/waived) as needed.
+
 ## Deployment
 
 - Backend is designed for Render and PostgreSQL
