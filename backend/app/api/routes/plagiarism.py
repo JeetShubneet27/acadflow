@@ -226,14 +226,19 @@ def verify_public_razorpay_payment(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid access token")
     if job.payment_status == PaymentStatus.paid:
         return job
+    if not job.payment_order_id or payload.razorpay_order_id != job.payment_order_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid payment order")
     client = _get_razorpay_client()
-    client.utility.verify_payment_signature(
-        {
-            "razorpay_order_id": payload.razorpay_order_id,
-            "razorpay_payment_id": payload.razorpay_payment_id,
-            "razorpay_signature": payload.razorpay_signature,
-        }
-    )
+    try:
+        client.utility.verify_payment_signature(
+            {
+                "razorpay_order_id": payload.razorpay_order_id,
+                "razorpay_payment_id": payload.razorpay_payment_id,
+                "razorpay_signature": payload.razorpay_signature,
+            }
+        )
+    except razorpay.errors.SignatureVerificationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid payment signature") from exc
     job.payment_status = PaymentStatus.paid
     job.payment_provider = "razorpay"
     job.payment_order_id = payload.razorpay_order_id
@@ -348,14 +353,19 @@ def verify_razorpay_payment(
     _ensure_project_access(db, project, current_user)
     if job.payment_status == PaymentStatus.paid:
         return job
+    if not job.payment_order_id or payload.razorpay_order_id != job.payment_order_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid payment order")
     client = _get_razorpay_client()
-    client.utility.verify_payment_signature(
-        {
-            "razorpay_order_id": payload.razorpay_order_id,
-            "razorpay_payment_id": payload.razorpay_payment_id,
-            "razorpay_signature": payload.razorpay_signature,
-        }
-    )
+    try:
+        client.utility.verify_payment_signature(
+            {
+                "razorpay_order_id": payload.razorpay_order_id,
+                "razorpay_payment_id": payload.razorpay_payment_id,
+                "razorpay_signature": payload.razorpay_signature,
+            }
+        )
+    except razorpay.errors.SignatureVerificationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid payment signature") from exc
     job.payment_status = PaymentStatus.paid
     job.payment_provider = "razorpay"
     job.payment_order_id = payload.razorpay_order_id
@@ -571,8 +581,9 @@ def download_report(
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
     _ensure_project_access(db, project, current_user)
-    if current_user.role.value != "faculty" and job.payment_status == PaymentStatus.pending:
-        raise HTTPException(status_code=status.HTTP_402_PAYMENT_REQUIRED, detail="Payment required")
+    if job.payment_status == PaymentStatus.pending:
+        if current_user.role.value != "faculty" or current_user.id == job.submitted_by_id:
+            raise HTTPException(status_code=status.HTTP_402_PAYMENT_REQUIRED, detail="Payment required")
     if not job.report_file_path:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not available")
     return FileResponse(job.report_file_path, filename=job.report_filename)

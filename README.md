@@ -52,8 +52,7 @@ Environment variables (see `frontend/.env.example`):
 ## Roles
 
 - **student**: create projects, upload drafts, request plagiarism checks
-- **reviewer**: submit reviews for assigned projects
-- **faculty**: manage roles, assign reviewers, upload plagiarism reports
+- **faculty**: submit reviews when assigned and manage admin dashboard actions
 
 ## Plagiarism workflow
 
@@ -73,6 +72,7 @@ status (pending/paid/waived) as needed.
 
 - Razorpay integration for UPI/cards/netbanking
 - Payment is verified automatically and report access is gated on payment
+- Webhook: `POST /plagiarism/razorpay/webhook`
 
 ### Faculty verification
 
