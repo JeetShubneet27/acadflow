@@ -4,7 +4,7 @@ from app.db.session import SessionLocal
 from app.models.enums import InviteStatus, RoleEnum
 from app.models.project_invite import ProjectInvite
 
-from .conftest import set_user_role
+from tests.utils import set_user_role
 
 
 def _signup(client, email: str, password: str, full_name: str):

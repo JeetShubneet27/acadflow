@@ -8,10 +8,8 @@ import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
 from app.db.base import Base  # noqa: E402
-from app.db.session import SessionLocal, engine  # noqa: E402
+from app.db.session import engine  # noqa: E402
 from app.main import create_app  # noqa: E402
-from app.models.enums import RoleEnum  # noqa: E402
-from app.models.user import User  # noqa: E402
 
 
 @pytest.fixture()
@@ -21,14 +19,3 @@ def client():
     app = create_app()
     with TestClient(app) as test_client:
         yield test_client
-
-
-def set_user_role(email: str, role: RoleEnum) -> None:
-    db = SessionLocal()
-    try:
-        user = db.query(User).filter(User.email == email).first()
-        if user:
-            user.role = role
-            db.commit()
-    finally:
-        db.close()

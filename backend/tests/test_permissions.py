@@ -1,6 +1,6 @@
 from app.models.enums import RoleEnum
 
-from .conftest import set_user_role
+from tests.utils import set_user_role
 
 
 def _signup(client, email: str, password: str, full_name: str):
