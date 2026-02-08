@@ -72,5 +72,8 @@ def test_invite_lifecycle(client):
     ).json()
     assert revoked["status"] == InviteStatus.revoked.value
 
-    invitee_view = client.get("/projects/invites", headers=_auth_headers(student_token)).json()
+    invitee_response = client.get("/projects/invites", headers=_auth_headers(student_token))
+    assert invitee_response.status_code == 200
+    invitee_view = invitee_response.json()
+    assert isinstance(invitee_view, list)
     assert any(inv["status"] == InviteStatus.revoked.value for inv in invitee_view)
