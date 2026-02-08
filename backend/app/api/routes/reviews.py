@@ -48,8 +48,11 @@ def assign_reviewer(
     reviewer = db.get(User, payload.reviewer_id)
     if not reviewer:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reviewer not found")
-    if reviewer.role != RoleEnum.reviewer:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User is not a reviewer")
+    if reviewer.role != RoleEnum.faculty:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only faculty members can be assigned as reviewers",
+        )
     existing = (
         db.query(Review)
         .filter(Review.project_id == project_id, Review.reviewer_id == payload.reviewer_id)
@@ -69,7 +72,7 @@ def list_assigned_reviews(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[Review]:
-    if current_user.role != RoleEnum.reviewer:
+    if current_user.role != RoleEnum.faculty:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
     return (
         db.query(Review)
@@ -89,7 +92,7 @@ def submit_review(
     review = db.get(Review, review_id)
     if not review:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Review not found")
-    if review.reviewer_id != current_user.id:
+    if review.reviewer_id != current_user.id or current_user.role != RoleEnum.faculty:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
     review.score = payload.score
     review.comments = payload.comments

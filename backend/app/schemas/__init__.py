@@ -8,6 +8,8 @@ from app.schemas.plagiarism import (
     PlagiarismJobOut,
     PublicPlagiarismJobOut,
     PublicPlagiarismStatusOut,
+    RazorpayOrderOut,
+    RazorpayVerifyIn,
 )
 from app.schemas.project import ProjectCreate, ProjectMemberOut, ProjectOut, ProjectVisibilityUpdate
 from app.schemas.review import ReviewAssign, ReviewOut, ReviewSubmit
@@ -26,6 +28,8 @@ __all__ = [
     "PaymentDetailsOut",
     "PaymentReferenceCreate",
     "PaymentUpdate",
+    "RazorpayOrderOut",
+    "RazorpayVerifyIn",
     "ProjectCreate",
     "ProjectMemberOut",
     "ProjectOut",

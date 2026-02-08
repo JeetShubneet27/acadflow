@@ -33,6 +33,8 @@ Environment variables (see `backend/.env.example`):
 - `DATABASE_URL` defaults to SQLite
 - `JWT_SECRET` must be changed in production
 - `CORS_ORIGINS` should include the frontend URL in production
+- `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` required for payments
+- `RAZORPAY_WEBHOOK_SECRET` required for webhook verification
 
 ## Frontend setup
 
@@ -67,11 +69,15 @@ issues a job ID and access token so the submitter can check status and download
 the report later. Pricing is stored per job and faculty can update payment
 status (pending/paid/waived) as needed.
 
-### UPI payment flow (India)
+### Payments (India)
 
-- Public users can scan a UPI QR or open a UPI intent link
-- They submit the UTR/transaction ID for verification
-- Faculty verifies and marks the job as paid
+- Razorpay integration for UPI/cards/netbanking
+- Payment is verified automatically and report access is gated on payment
+
+### Faculty verification
+
+- Faculty roles require official institutional email domains
+- Public email providers (e.g. Gmail/Yahoo/Outlook) are blocked for faculty
 
 ## Deployment
 

@@ -14,6 +14,12 @@ class Settings(BaseSettings):
     plagiarism_currency: str = "INR"
     payment_upi_vpa: str = "acadflow@upi"
     payment_upi_payee_name: str = "AcadFlow"
+    razorpay_key_id: str = ""
+    razorpay_key_secret: str = ""
+    razorpay_webhook_secret: str = ""
+    faculty_blocked_domains: str = (
+        "gmail.com,googlemail.com,yahoo.com,ymail.com,outlook.com,hotmail.com,live.com,aol.com,icloud.com"
+    )
 
     class Config:
         env_file = ".env"

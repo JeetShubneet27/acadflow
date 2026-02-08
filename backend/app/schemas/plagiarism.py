@@ -18,6 +18,10 @@ class PlagiarismJobOut(BaseModel):
     report_filename: Optional[str]
     payment_status: PaymentStatus
     payment_method: Optional[str]
+    payment_provider: Optional[str]
+    payment_order_id: Optional[str]
+    payment_payment_id: Optional[str]
+    payment_signature: Optional[str]
     payment_reference: Optional[str]
     payment_submitted_at: Optional[datetime]
     amount_cents: int
@@ -71,3 +75,17 @@ class PaymentDetailsOut(BaseModel):
     upi_vpa: str
     payee_name: str
     upi_uri: str
+
+
+class RazorpayOrderOut(BaseModel):
+    key_id: str
+    order_id: str
+    amount: int
+    currency: str
+    job_id: int
+
+
+class RazorpayVerifyIn(BaseModel):
+    razorpay_order_id: str
+    razorpay_payment_id: str
+    razorpay_signature: str

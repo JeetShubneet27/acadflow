@@ -3,9 +3,10 @@ from typing import Optional
 from urllib.parse import urlencode
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.responses import FileResponse
 from pydantic import EmailStr
+import razorpay
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -23,6 +24,8 @@ from app.schemas.plagiarism import (
     PlagiarismJobOut,
     PublicPlagiarismJobOut,
     PublicPlagiarismStatusOut,
+    RazorpayOrderOut,
+    RazorpayVerifyIn,
 )
 from app.utils.files import save_upload_file, validate_upload_file
 
@@ -53,6 +56,15 @@ def _build_upi_uri(job: PlagiarismJob) -> str:
         "tn": f"AcadFlow plagiarism job {job.id}",
     }
     return f"upi://pay?{urlencode(params)}"
+
+
+def _get_razorpay_client() -> razorpay.Client:
+    if not settings.razorpay_key_id or not settings.razorpay_key_secret:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Razorpay is not configured",
+        )
+    return razorpay.Client(auth=(settings.razorpay_key_id, settings.razorpay_key_secret))
 
 
 @router.post(
@@ -158,6 +170,81 @@ def create_public_job(
     )
 
 
+@router.post(
+    "/plagiarism/public-jobs/{job_id}/razorpay/order",
+    response_model=RazorpayOrderOut,
+)
+def create_public_razorpay_order(
+    job_id: int,
+    access_token: str,
+    db: Session = Depends(get_db),
+) -> RazorpayOrderOut:
+    job = db.get(PlagiarismJob, job_id)
+    if not job or not job.is_public:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+    if job.public_access_token != access_token:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid access token")
+    if job.payment_status != PaymentStatus.pending:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Payment already processed")
+    client = _get_razorpay_client()
+    order = client.order.create(
+        {
+            "amount": job.amount_cents,
+            "currency": job.currency,
+            "receipt": f"acadflow_public_{job.id}",
+            "notes": {"job_id": str(job.id), "type": "public"},
+        }
+    )
+    job.payment_provider = "razorpay"
+    job.payment_method = "upi"
+    job.payment_order_id = order["id"]
+    db.commit()
+    db.refresh(job)
+    return RazorpayOrderOut(
+        key_id=settings.razorpay_key_id,
+        order_id=order["id"],
+        amount=order["amount"],
+        currency=order["currency"],
+        job_id=job.id,
+    )
+
+
+@router.post(
+    "/plagiarism/public-jobs/{job_id}/razorpay/verify",
+    response_model=PublicPlagiarismStatusOut,
+)
+def verify_public_razorpay_payment(
+    job_id: int,
+    payload: RazorpayVerifyIn,
+    access_token: str,
+    db: Session = Depends(get_db),
+) -> PlagiarismJob:
+    job = db.get(PlagiarismJob, job_id)
+    if not job or not job.is_public:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+    if job.public_access_token != access_token:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid access token")
+    if job.payment_status == PaymentStatus.paid:
+        return job
+    client = _get_razorpay_client()
+    client.utility.verify_payment_signature(
+        {
+            "razorpay_order_id": payload.razorpay_order_id,
+            "razorpay_payment_id": payload.razorpay_payment_id,
+            "razorpay_signature": payload.razorpay_signature,
+        }
+    )
+    job.payment_status = PaymentStatus.paid
+    job.payment_provider = "razorpay"
+    job.payment_order_id = payload.razorpay_order_id
+    job.payment_payment_id = payload.razorpay_payment_id
+    job.payment_signature = payload.razorpay_signature
+    job.payment_submitted_at = datetime.utcnow()
+    db.commit()
+    db.refresh(job)
+    return job
+
+
 @router.get("/plagiarism/public-jobs/{job_id}/payment-details", response_model=PaymentDetailsOut)
 def get_public_payment_details(
     job_id: int,
@@ -197,6 +284,83 @@ def submit_public_payment_reference(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Payment already processed")
     job.payment_reference = payload.reference
     job.payment_method = payload.method or "upi"
+    job.payment_submitted_at = datetime.utcnow()
+    db.commit()
+    db.refresh(job)
+    return job
+
+
+@router.post("/plagiarism/jobs/{job_id}/razorpay/order", response_model=RazorpayOrderOut)
+def create_razorpay_order(
+    job_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> RazorpayOrderOut:
+    job = db.get(PlagiarismJob, job_id)
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+    if job.is_public:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Use public payment endpoint")
+    project = db.get(Project, job.project_id)
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    _ensure_project_access(db, project, current_user)
+    if job.payment_status != PaymentStatus.pending:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Payment already processed")
+    client = _get_razorpay_client()
+    order = client.order.create(
+        {
+            "amount": job.amount_cents,
+            "currency": job.currency,
+            "receipt": f"acadflow_project_{job.id}",
+            "notes": {"job_id": str(job.id), "type": "project"},
+        }
+    )
+    job.payment_provider = "razorpay"
+    job.payment_method = "upi"
+    job.payment_order_id = order["id"]
+    db.commit()
+    db.refresh(job)
+    return RazorpayOrderOut(
+        key_id=settings.razorpay_key_id,
+        order_id=order["id"],
+        amount=order["amount"],
+        currency=order["currency"],
+        job_id=job.id,
+    )
+
+
+@router.post("/plagiarism/jobs/{job_id}/razorpay/verify", response_model=PlagiarismJobOut)
+def verify_razorpay_payment(
+    job_id: int,
+    payload: RazorpayVerifyIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> PlagiarismJob:
+    job = db.get(PlagiarismJob, job_id)
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+    if job.is_public:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Use public payment endpoint")
+    project = db.get(Project, job.project_id)
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    _ensure_project_access(db, project, current_user)
+    if job.payment_status == PaymentStatus.paid:
+        return job
+    client = _get_razorpay_client()
+    client.utility.verify_payment_signature(
+        {
+            "razorpay_order_id": payload.razorpay_order_id,
+            "razorpay_payment_id": payload.razorpay_payment_id,
+            "razorpay_signature": payload.razorpay_signature,
+        }
+    )
+    job.payment_status = PaymentStatus.paid
+    job.payment_provider = "razorpay"
+    job.payment_order_id = payload.razorpay_order_id
+    job.payment_payment_id = payload.razorpay_payment_id
+    job.payment_signature = payload.razorpay_signature
     job.payment_submitted_at = datetime.utcnow()
     db.commit()
     db.refresh(job)
@@ -347,6 +511,43 @@ def update_payment_status(
     db.commit()
     db.refresh(job)
     return job
+
+
+@router.post("/plagiarism/razorpay/webhook")
+async def razorpay_webhook(request: Request, db: Session = Depends(get_db)):
+    if not settings.razorpay_webhook_secret:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Webhook not configured")
+    body = await request.body()
+    signature = request.headers.get("X-Razorpay-Signature")
+    if not signature:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing signature")
+    client = _get_razorpay_client()
+    try:
+        client.utility.verify_webhook_signature(body, signature, settings.razorpay_webhook_secret)
+    except razorpay.errors.SignatureVerificationError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid signature") from exc
+
+    payload = await request.json()
+    event = payload.get("event")
+    if event != "payment.captured":
+        return {"status": "ignored"}
+
+    payment_entity = payload.get("payload", {}).get("payment", {}).get("entity", {})
+    order_id = payment_entity.get("order_id")
+    payment_id = payment_entity.get("id")
+    if not order_id:
+        return {"status": "ignored"}
+
+    job = db.query(PlagiarismJob).filter(PlagiarismJob.payment_order_id == order_id).first()
+    if not job:
+        return {"status": "ignored"}
+    if job.payment_status != PaymentStatus.paid:
+        job.payment_status = PaymentStatus.paid
+        job.payment_provider = "razorpay"
+        job.payment_payment_id = payment_id
+        job.payment_submitted_at = datetime.utcnow()
+        db.commit()
+    return {"status": "ok"}
 
 
 @router.get("/plagiarism/jobs/{job_id}/report")
