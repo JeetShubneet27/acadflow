@@ -24,6 +24,7 @@ cd backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+pip install -r requirements-dev.txt
 cp .env.example .env
 uvicorn app.main:app --reload --port 8000
 ```
@@ -83,3 +84,25 @@ status (pending/paid/waived) as needed.
 
 - Backend is designed for Render and PostgreSQL
 - Frontend is designed for Vercel
+
+## Tests
+
+```bash
+cd backend
+pytest
+```
+
+## Migrations
+
+Alembic is configured under `backend/alembic`.
+
+For a new database:
+```bash
+cd backend
+alembic upgrade head
+```
+
+If the database already exists, stamp the current revision before upgrading:
+```bash
+alembic stamp head
+```

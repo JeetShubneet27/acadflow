@@ -29,6 +29,7 @@ class ProjectVisibilityUpdate(BaseModel):
 
 
 class ProjectMemberOut(BaseModel):
+    id: int
     user_id: int
     role: MembershipRole
     status: MemberStatus

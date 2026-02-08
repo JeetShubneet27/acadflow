@@ -1,7 +1,17 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import annotations, audit, auth, drafts, plagiarism, projects, reviews, users
+from app.api.routes import (
+    annotations,
+    audit,
+    auth,
+    drafts,
+    maintenance,
+    plagiarism,
+    projects,
+    reviews,
+    users,
+)
 from app.core.config import settings
 from app.db.base import Base
 from app.db.session import engine
@@ -28,6 +38,7 @@ def create_app() -> FastAPI:
     app.include_router(plagiarism.router)
     app.include_router(annotations.router)
     app.include_router(audit.router)
+    app.include_router(maintenance.router)
 
     return app
 
