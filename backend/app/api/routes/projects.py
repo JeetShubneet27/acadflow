@@ -152,6 +152,26 @@ def list_public_projects(db: Session = Depends(get_db)) -> list[Project]:
     )
 
 
+@router.get("/projects/invites", response_model=list[InviteOut])
+def list_invites(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[ProjectInvite]:
+    invites = (
+        db.query(ProjectInvite)
+        .filter(ProjectInvite.invitee_id == current_user.id)
+        .order_by(ProjectInvite.created_at.desc())
+        .all()
+    )
+    updated = False
+    for invite in invites:
+        if _expire_invite_if_needed(invite):
+            updated = True
+    if updated:
+        db.commit()
+    return invites
+
+
 @router.get("/projects/{project_id}", response_model=ProjectOut)
 def get_project(
     project_id: int,
@@ -309,26 +329,6 @@ def invite_member(
     )
     db.commit()
     return invite
-
-
-@router.get("/projects/invites", response_model=list[InviteOut])
-def list_invites(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-) -> list[ProjectInvite]:
-    invites = (
-        db.query(ProjectInvite)
-        .filter(ProjectInvite.invitee_id == current_user.id)
-        .order_by(ProjectInvite.created_at.desc())
-        .all()
-    )
-    updated = False
-    for invite in invites:
-        if _expire_invite_if_needed(invite):
-            updated = True
-    if updated:
-        db.commit()
-    return invites
 
 
 @router.get("/projects/{project_id}/invites", response_model=list[InviteOut])
