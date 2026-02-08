@@ -17,6 +17,9 @@ class PlagiarismJobOut(BaseModel):
     original_filename: str
     report_filename: Optional[str]
     payment_status: PaymentStatus
+    payment_method: Optional[str]
+    payment_reference: Optional[str]
+    payment_submitted_at: Optional[datetime]
     amount_cents: int
     currency: str
     is_public: bool
@@ -44,6 +47,7 @@ class PublicPlagiarismStatusOut(BaseModel):
     currency: str
     payment_status: PaymentStatus
     report_filename: Optional[str]
+    payment_submitted_at: Optional[datetime]
     created_at: datetime
     completed_at: Optional[datetime]
 
@@ -53,3 +57,17 @@ class PublicPlagiarismStatusOut(BaseModel):
 
 class PaymentUpdate(BaseModel):
     status: PaymentStatus
+
+
+class PaymentReferenceCreate(BaseModel):
+    reference: str
+    method: Optional[str] = "upi"
+
+
+class PaymentDetailsOut(BaseModel):
+    job_id: int
+    amount_cents: int
+    currency: str
+    upi_vpa: str
+    payee_name: str
+    upi_uri: str

@@ -11,7 +11,9 @@ class Settings(BaseSettings):
     storage_dir: str = "./storage"
     cors_origins: str = "http://localhost:3000"
     plagiarism_base_fee_cents: int = 2500
-    plagiarism_currency: str = "USD"
+    plagiarism_currency: str = "INR"
+    payment_upi_vpa: str = "acadflow@upi"
+    payment_upi_payee_name: str = "AcadFlow"
 
     class Config:
         env_file = ".env"

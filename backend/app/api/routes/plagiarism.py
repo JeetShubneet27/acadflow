@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Optional
+from urllib.parse import urlencode
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
@@ -16,6 +17,8 @@ from app.models.project import Project
 from app.models.project_member import ProjectMember
 from app.models.user import User
 from app.schemas.plagiarism import (
+    PaymentDetailsOut,
+    PaymentReferenceCreate,
     PaymentUpdate,
     PlagiarismJobOut,
     PublicPlagiarismJobOut,
@@ -38,6 +41,18 @@ def _ensure_project_access(db: Session, project: Project, user: User) -> None:
     )
     if project.owner_id != user.id and not is_member:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+
+
+def _build_upi_uri(job: PlagiarismJob) -> str:
+    amount = f"{job.amount_cents / 100:.2f}"
+    params = {
+        "pa": settings.payment_upi_vpa,
+        "pn": settings.payment_upi_payee_name,
+        "am": amount,
+        "cu": job.currency,
+        "tn": f"AcadFlow plagiarism job {job.id}",
+    }
+    return f"upi://pay?{urlencode(params)}"
 
 
 @router.post(
@@ -143,6 +158,51 @@ def create_public_job(
     )
 
 
+@router.get("/plagiarism/public-jobs/{job_id}/payment-details", response_model=PaymentDetailsOut)
+def get_public_payment_details(
+    job_id: int,
+    access_token: str,
+    db: Session = Depends(get_db),
+) -> PaymentDetailsOut:
+    job = db.get(PlagiarismJob, job_id)
+    if not job or not job.is_public:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+    if job.public_access_token != access_token:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid access token")
+    if not settings.payment_upi_vpa:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="UPI not configured")
+    return PaymentDetailsOut(
+        job_id=job.id,
+        amount_cents=job.amount_cents,
+        currency=job.currency,
+        upi_vpa=settings.payment_upi_vpa,
+        payee_name=settings.payment_upi_payee_name,
+        upi_uri=_build_upi_uri(job),
+    )
+
+
+@router.post("/plagiarism/public-jobs/{job_id}/payment-reference", response_model=PublicPlagiarismStatusOut)
+def submit_public_payment_reference(
+    job_id: int,
+    payload: PaymentReferenceCreate,
+    access_token: str,
+    db: Session = Depends(get_db),
+) -> PlagiarismJob:
+    job = db.get(PlagiarismJob, job_id)
+    if not job or not job.is_public:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+    if job.public_access_token != access_token:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid access token")
+    if job.payment_status != PaymentStatus.pending:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Payment already processed")
+    job.payment_reference = payload.reference
+    job.payment_method = payload.method or "upi"
+    job.payment_submitted_at = datetime.utcnow()
+    db.commit()
+    db.refresh(job)
+    return job
+
+
 @router.get("/plagiarism/public-jobs/{job_id}", response_model=PublicPlagiarismStatusOut)
 def get_public_job_status(
     job_id: int,
@@ -192,6 +252,61 @@ def get_job(
     if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
     _ensure_project_access(db, project, current_user)
+    return job
+
+
+@router.get("/plagiarism/jobs/{job_id}/payment-details", response_model=PaymentDetailsOut)
+def get_payment_details(
+    job_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> PaymentDetailsOut:
+    job = db.get(PlagiarismJob, job_id)
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+    if job.is_public:
+        if current_user.role.value != "faculty":
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+    else:
+        project = db.get(Project, job.project_id)
+        if not project:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+        _ensure_project_access(db, project, current_user)
+    if not settings.payment_upi_vpa:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="UPI not configured")
+    return PaymentDetailsOut(
+        job_id=job.id,
+        amount_cents=job.amount_cents,
+        currency=job.currency,
+        upi_vpa=settings.payment_upi_vpa,
+        payee_name=settings.payment_upi_payee_name,
+        upi_uri=_build_upi_uri(job),
+    )
+
+
+@router.post("/plagiarism/jobs/{job_id}/payment-reference", response_model=PlagiarismJobOut)
+def submit_payment_reference(
+    job_id: int,
+    payload: PaymentReferenceCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> PlagiarismJob:
+    job = db.get(PlagiarismJob, job_id)
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+    if job.is_public:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Use public payment endpoint")
+    project = db.get(Project, job.project_id)
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    _ensure_project_access(db, project, current_user)
+    if job.payment_status != PaymentStatus.pending:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Payment already processed")
+    job.payment_reference = payload.reference
+    job.payment_method = payload.method or "upi"
+    job.payment_submitted_at = datetime.utcnow()
+    db.commit()
+    db.refresh(job)
     return job
 
 
