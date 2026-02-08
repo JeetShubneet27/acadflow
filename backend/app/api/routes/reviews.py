@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db, require_roles
-from app.models.enums import ReviewStatus, RoleEnum
+from app.models.enums import MemberStatus, ReviewStatus, RoleEnum
 from app.models.project import Project
 from app.models.project_member import ProjectMember
 from app.models.review import Review
@@ -27,7 +27,11 @@ def _ensure_member_or_owner(db: Session, project: Project, user: User) -> None:
         return
     is_member = (
         db.query(ProjectMember)
-        .filter(ProjectMember.project_id == project.id, ProjectMember.user_id == user.id)
+        .filter(
+            ProjectMember.project_id == project.id,
+            ProjectMember.user_id == user.id,
+            ProjectMember.status == MemberStatus.active,
+        )
         .first()
         is not None
     )

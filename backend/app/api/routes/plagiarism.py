@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, get_db, require_roles
 from app.core.config import settings
-from app.models.enums import PaymentStatus, PlagiarismStatus
+from app.models.enums import MemberStatus, PaymentStatus, PlagiarismStatus
 from app.models.plagiarism import PlagiarismJob
 from app.models.project import Project
 from app.models.project_member import ProjectMember
@@ -38,7 +38,11 @@ def _ensure_project_access(db: Session, project: Project, user: User) -> None:
         return
     is_member = (
         db.query(ProjectMember)
-        .filter(ProjectMember.project_id == project.id, ProjectMember.user_id == user.id)
+        .filter(
+            ProjectMember.project_id == project.id,
+            ProjectMember.user_id == user.id,
+            ProjectMember.status == MemberStatus.active,
+        )
         .first()
         is not None
     )

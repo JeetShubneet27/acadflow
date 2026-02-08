@@ -1,5 +1,8 @@
 from app.schemas.auth import LoginRequest, Token
+from app.schemas.annotation import AnnotationCreate, AnnotationOut, AnnotationUpdate
+from app.schemas.audit import ActivityEventOut, AuditEventOut
 from app.schemas.draft import DraftOut
+from app.schemas.draft_lock import DraftLockOut
 from app.schemas.invite import InviteAction, InviteCreate, InviteOut
 from app.schemas.plagiarism import (
     PaymentDetailsOut,
@@ -11,14 +14,28 @@ from app.schemas.plagiarism import (
     RazorpayOrderOut,
     RazorpayVerifyIn,
 )
-from app.schemas.project import ProjectCreate, ProjectMemberOut, ProjectOut, ProjectVisibilityUpdate
+from app.schemas.project import (
+    ProjectCreate,
+    ProjectMemberOut,
+    ProjectMemberRoleUpdate,
+    ProjectMemberStatusUpdate,
+    ProjectOut,
+    ProjectPermissionsOut,
+    ProjectVisibilityUpdate,
+)
 from app.schemas.review import ReviewAssign, ReviewOut, ReviewSubmit
 from app.schemas.user import UserCreate, UserOut, UserRoleUpdate
 
 __all__ = [
     "LoginRequest",
     "Token",
+    "AnnotationCreate",
+    "AnnotationOut",
+    "AnnotationUpdate",
+    "ActivityEventOut",
+    "AuditEventOut",
     "DraftOut",
+    "DraftLockOut",
     "InviteAction",
     "InviteCreate",
     "InviteOut",
@@ -32,7 +49,10 @@ __all__ = [
     "RazorpayVerifyIn",
     "ProjectCreate",
     "ProjectMemberOut",
+    "ProjectMemberRoleUpdate",
+    "ProjectMemberStatusUpdate",
     "ProjectOut",
+    "ProjectPermissionsOut",
     "ProjectVisibilityUpdate",
     "ReviewAssign",
     "ReviewOut",

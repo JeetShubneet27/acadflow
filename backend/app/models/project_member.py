@@ -4,7 +4,7 @@ from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, UniqueConstr
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
-from app.models.enums import MembershipRole
+from app.models.enums import MemberStatus, MembershipRole
 
 
 class ProjectMember(Base):
@@ -15,6 +15,7 @@ class ProjectMember(Base):
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     role = Column(Enum(MembershipRole), nullable=False, default=MembershipRole.coauthor)
+    status = Column(Enum(MemberStatus), nullable=False, default=MemberStatus.active)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     project = relationship("Project", back_populates="members")

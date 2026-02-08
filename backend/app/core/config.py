@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     faculty_blocked_domains: str = (
         "gmail.com,googlemail.com,yahoo.com,ymail.com,outlook.com,hotmail.com,live.com,aol.com,icloud.com"
     )
+    invite_expiry_hours: int = 168
+    draft_lock_minutes: int = 60
 
     class Config:
         env_file = ".env"

@@ -17,10 +17,17 @@ class MembershipRole(str, enum.Enum):
     coauthor = "coauthor"
 
 
+class MemberStatus(str, enum.Enum):
+    active = "active"
+    suspended = "suspended"
+
+
 class InviteStatus(str, enum.Enum):
     pending = "pending"
     accepted = "accepted"
     rejected = "rejected"
+    revoked = "revoked"
+    expired = "expired"
 
 
 class ReviewStatus(str, enum.Enum):
@@ -38,3 +45,14 @@ class PaymentStatus(str, enum.Enum):
     pending = "pending"
     paid = "paid"
     waived = "waived"
+
+
+class DraftLockStatus(str, enum.Enum):
+    active = "active"
+    released = "released"
+    expired = "expired"
+
+
+class AnnotationStatus(str, enum.Enum):
+    open = "open"
+    resolved = "resolved"

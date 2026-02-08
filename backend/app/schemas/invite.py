@@ -23,6 +23,12 @@ class InviteOut(BaseModel):
     invitee_id: int
     status: InviteStatus
     membership_role: MembershipRole
+    invite_token: Optional[str]
+    expires_at: Optional[datetime]
+    accepted_at: Optional[datetime]
+    rejected_at: Optional[datetime]
+    revoked_at: Optional[datetime]
+    revoked_by_id: Optional[int]
     created_at: datetime
 
     class Config:
