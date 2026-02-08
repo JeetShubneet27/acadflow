@@ -10,7 +10,7 @@ from app.models.project import Project
 from app.models.project_member import ProjectMember
 from app.models.user import User
 from app.schemas.draft import DraftOut
-from app.utils.files import save_upload_file
+from app.utils.files import save_upload_file, validate_upload_file
 
 
 router = APIRouter(tags=["drafts"])
@@ -41,6 +41,7 @@ def upload_draft(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
     _ensure_access(db, project, current_user)
 
+    validate_upload_file(file)
     latest_version = (
         db.query(func.max(Draft.version))
         .filter(Draft.project_id == project_id)

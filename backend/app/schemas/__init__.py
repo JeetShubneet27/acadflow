@@ -1,7 +1,12 @@
 from app.schemas.auth import LoginRequest, Token
 from app.schemas.draft import DraftOut
 from app.schemas.invite import InviteAction, InviteCreate, InviteOut
-from app.schemas.plagiarism import PlagiarismJobOut
+from app.schemas.plagiarism import (
+    PaymentUpdate,
+    PlagiarismJobOut,
+    PublicPlagiarismJobOut,
+    PublicPlagiarismStatusOut,
+)
 from app.schemas.project import ProjectCreate, ProjectMemberOut, ProjectOut, ProjectVisibilityUpdate
 from app.schemas.review import ReviewAssign, ReviewOut, ReviewSubmit
 from app.schemas.user import UserCreate, UserOut, UserRoleUpdate
@@ -14,6 +19,9 @@ __all__ = [
     "InviteCreate",
     "InviteOut",
     "PlagiarismJobOut",
+    "PublicPlagiarismJobOut",
+    "PublicPlagiarismStatusOut",
+    "PaymentUpdate",
     "ProjectCreate",
     "ProjectMemberOut",
     "ProjectOut",

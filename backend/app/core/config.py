@@ -10,6 +10,8 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60 * 24
     storage_dir: str = "./storage"
     cors_origins: str = "http://localhost:3000"
+    plagiarism_base_fee_cents: int = 2500
+    plagiarism_currency: str = "USD"
 
     class Config:
         env_file = ".env"

@@ -32,3 +32,9 @@ class PlagiarismStatus(str, enum.Enum):
     queued = "queued"
     in_review = "in_review"
     completed = "completed"
+
+
+class PaymentStatus(str, enum.Enum):
+    pending = "pending"
+    paid = "paid"
+    waived = "waived"
