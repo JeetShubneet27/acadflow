@@ -1,0 +1,89 @@
+"use client";
+
+import { useState } from "react";
+import SectionCard from "@/components/SectionCard";
+import { apiFetch } from "@/lib/api";
+
+type Draft = {
+  id: number;
+  version: number;
+  original_filename: string;
+  created_at: string;
+};
+
+export default function DraftsPage() {
+  const [projectId, setProjectId] = useState("");
+  const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleLoad = async () => {
+    if (!projectId) {
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const response = await apiFetch<Draft[]>(`/projects/${projectId}/drafts`);
+      setDrafts(response);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load drafts");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold text-slate-900">Drafts</h1>
+        <p className="text-sm text-slate-600">
+          Review uploaded versions across your projects.
+        </p>
+      </div>
+
+      <SectionCard title="Fetch project drafts">
+        <div className="flex flex-wrap gap-3">
+          <input
+            type="number"
+            value={projectId}
+            onChange={(event) => setProjectId(event.target.value)}
+            placeholder="Project ID"
+            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+          />
+          <button
+            type="button"
+            onClick={handleLoad}
+            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+          >
+            Load drafts
+          </button>
+        </div>
+      </SectionCard>
+
+      {error && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      <SectionCard title="Draft versions">
+        {isLoading ? (
+          <div className="text-sm text-slate-500">Loading drafts...</div>
+        ) : drafts.length === 0 ? (
+          <div className="text-sm text-slate-500">
+            No drafts available for this project.
+          </div>
+        ) : (
+          <ul className="space-y-2 text-sm text-slate-600">
+            {drafts.map((draft) => (
+              <li key={draft.id}>
+                v{draft.version} • {draft.original_filename}
+              </li>
+            ))}
+          </ul>
+        )}
+      </SectionCard>
+    </div>
+  );
+}
