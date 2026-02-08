@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import QRCode from "qrcode";
 import SectionCard from "@/components/SectionCard";
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
@@ -36,8 +37,18 @@ type PublicJobStatus = {
   currency: string;
   payment_status: string;
   report_filename?: string;
+  payment_submitted_at?: string;
   created_at: string;
   completed_at?: string;
+};
+
+type PaymentDetails = {
+  job_id: number;
+  amount_cents: number;
+  currency: string;
+  upi_vpa: string;
+  payee_name: string;
+  upi_uri: string;
 };
 
 export default function PlagiarismPage() {
@@ -53,6 +64,11 @@ export default function PlagiarismPage() {
   const [publicLookupId, setPublicLookupId] = useState("");
   const [publicLookupToken, setPublicLookupToken] = useState("");
   const [publicStatus, setPublicStatus] = useState<PublicJobStatus | null>(null);
+  const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(
+    null,
+  );
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [paymentReference, setPaymentReference] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -79,6 +95,25 @@ export default function PlagiarismPage() {
       setIsLoading(false);
     }
   }, [user]);
+
+  useEffect(() => {
+    if (!paymentDetails?.upi_uri) {
+      setQrDataUrl(null);
+      return;
+    }
+    QRCode.toDataURL(paymentDetails.upi_uri)
+      .then((url) => setQrDataUrl(url))
+      .catch(() => setQrDataUrl(null));
+  }, [paymentDetails]);
+
+  const fetchPaymentDetails = async (jobId: number, accessToken: string) => {
+    const response = await apiFetch<PaymentDetails>(
+      `/plagiarism/public-jobs/${jobId}/payment-details?access_token=${encodeURIComponent(
+        accessToken,
+      )}`,
+    );
+    setPaymentDetails(response);
+  };
 
   const handleRequest = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -129,6 +164,8 @@ export default function PlagiarismPage() {
       setPublicLookupId(String(response.id));
       setPublicLookupToken(response.access_token);
       setPublicStatus(null);
+      setPaymentReference("");
+      await fetchPaymentDetails(response.id, response.access_token);
       form.reset();
       setPublicEmail("");
       setPublicName("");
@@ -148,10 +185,34 @@ export default function PlagiarismPage() {
         )}`,
       );
       setPublicStatus(response);
+      await fetchPaymentDetails(Number(publicLookupId), publicLookupToken);
       setError(null);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Unable to fetch job status",
+      );
+    }
+  };
+
+  const handlePublicPaymentReference = async () => {
+    if (!paymentReference || !publicLookupId || !publicLookupToken) {
+      return;
+    }
+    try {
+      await apiFetch(
+        `/plagiarism/public-jobs/${publicLookupId}/payment-reference?access_token=${encodeURIComponent(
+          publicLookupToken,
+        )}`,
+        {
+          method: "POST",
+          body: JSON.stringify({ reference: paymentReference, method: "upi" }),
+        },
+      );
+      setPaymentReference("");
+      await handlePublicLookup();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to submit payment reference",
       );
     }
   };
@@ -310,6 +371,44 @@ export default function PlagiarismPage() {
               </div>
               <div>ETA: {publicResponse.eta_hours} hours</div>
             </div>
+            {paymentDetails && (
+              <div className="mt-4 grid gap-4 rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-600 md:grid-cols-[160px_1fr]">
+                <div className="flex items-center justify-center">
+                  {qrDataUrl ? (
+                    <img
+                      src={qrDataUrl}
+                      alt="UPI QR code"
+                      className="h-36 w-36 rounded-lg border border-slate-200 bg-white p-2"
+                    />
+                  ) : (
+                    <div className="text-xs text-slate-400">QR loading...</div>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <div className="font-semibold text-slate-900">
+                    Pay via UPI
+                  </div>
+                  <div>Payee: {paymentDetails.payee_name}</div>
+                  <div>UPI ID: {paymentDetails.upi_vpa}</div>
+                  <div>
+                    Amount:{" "}
+                    {formatCurrency(
+                      paymentDetails.amount_cents,
+                      paymentDetails.currency,
+                    )}
+                  </div>
+                  <a
+                    href={paymentDetails.upi_uri}
+                    className="inline-flex items-center rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white"
+                  >
+                    Open UPI app
+                  </a>
+                  <div className="text-[11px] text-slate-400">
+                    After payment, submit your UTR to verify.
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </SectionCard>
@@ -366,6 +465,62 @@ export default function PlagiarismPage() {
             ) : (
               <span className="text-xs text-slate-400">Report pending</span>
             )}
+          </div>
+        )}
+        {publicStatus &&
+          publicStatus.payment_status === "pending" &&
+          paymentDetails && (
+            <div className="mt-3 grid gap-4 rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-600 md:grid-cols-[160px_1fr]">
+              <div className="flex items-center justify-center">
+                {qrDataUrl ? (
+                  <img
+                    src={qrDataUrl}
+                    alt="UPI QR code"
+                    className="h-32 w-32 rounded-lg border border-slate-200 bg-white p-2"
+                  />
+                ) : (
+                  <div className="text-xs text-slate-400">QR loading...</div>
+                )}
+              </div>
+              <div className="space-y-2">
+                <div className="font-semibold text-slate-900">Pay via UPI</div>
+                <div>Payee: {paymentDetails.payee_name}</div>
+                <div>UPI ID: {paymentDetails.upi_vpa}</div>
+                <div>
+                  Amount:{" "}
+                  {formatCurrency(
+                    paymentDetails.amount_cents,
+                    paymentDetails.currency,
+                  )}
+                </div>
+                <a
+                  href={paymentDetails.upi_uri}
+                  className="inline-flex items-center rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white"
+                >
+                  Open UPI app
+                </a>
+              </div>
+            </div>
+          )}
+        {publicStatus && publicStatus.payment_status === "pending" && (
+          <div className="mt-3 grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600">
+            <div className="font-semibold text-slate-900">
+              Submit payment reference
+            </div>
+            <input
+              type="text"
+              value={paymentReference}
+              onChange={(event) => setPaymentReference(event.target.value)}
+              placeholder="Enter UTR / Transaction ID"
+              className="rounded-lg border border-slate-300 px-3 py-2 text-xs"
+            />
+            <button
+              type="button"
+              onClick={handlePublicPaymentReference}
+              className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white"
+            >
+              Submit UTR
+            </button>
           </div>
         )}
       </SectionCard>

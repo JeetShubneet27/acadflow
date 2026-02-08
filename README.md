@@ -67,6 +67,12 @@ issues a job ID and access token so the submitter can check status and download
 the report later. Pricing is stored per job and faculty can update payment
 status (pending/paid/waived) as needed.
 
+### UPI payment flow (India)
+
+- Public users can scan a UPI QR or open a UPI intent link
+- They submit the UTR/transaction ID for verification
+- Faculty verifies and marks the job as paid
+
 ## Deployment
 
 - Backend is designed for Render and PostgreSQL

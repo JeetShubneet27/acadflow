@@ -22,6 +22,8 @@ type Job = {
   payment_status: string;
   amount_cents: number;
   currency: string;
+  payment_reference?: string | null;
+  payment_submitted_at?: string | null;
 };
 
 export default function AdminPage() {
@@ -247,6 +249,7 @@ export default function AdminPage() {
                 Payment: {job.payment_status} •{" "}
                 {formatCurrency(job.amount_cents, job.currency)}
                 {job.requester_email ? ` • ${job.requester_email}` : ""}
+                {job.payment_reference ? ` • UTR ${job.payment_reference}` : ""}
               </div>
             </div>
           ))}

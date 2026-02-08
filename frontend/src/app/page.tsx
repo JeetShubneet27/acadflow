@@ -59,7 +59,7 @@ export default function Home() {
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <h3 className="text-lg font-semibold text-slate-900">Transparent pricing</h3>
           <p className="mt-2 text-sm text-slate-600">
-            Human-reviewed plagiarism checks start at $25 per submission.
+            Human-reviewed plagiarism checks start at INR 25 per submission.
           </p>
           <p className="mt-2 text-xs text-slate-500">
             Faculty can waive or adjust payment status per job.
