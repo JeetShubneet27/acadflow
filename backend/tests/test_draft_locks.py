@@ -1,6 +1,6 @@
 import io
 
-from tests.utils import verify_otp
+from tests.utils import get_user_id, verify_otp
 
 def _signup(client, email: str, password: str, full_name: str):
     response = client.post(
@@ -9,7 +9,7 @@ def _signup(client, email: str, password: str, full_name: str):
     )
     assert response.status_code == 201
     verify_otp(client, email)
-    return response.json()
+    return {"id": get_user_id(email)}
 
 
 def _login(client, email: str, password: str):

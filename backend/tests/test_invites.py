@@ -4,7 +4,7 @@ from app.db.session import SessionLocal
 from app.models.enums import InviteStatus, RoleEnum
 from app.models.project_invite import ProjectInvite
 
-from tests.utils import set_user_role, verify_otp
+from tests.utils import get_user_id, set_user_role, verify_otp
 
 
 def _signup(client, email: str, password: str, full_name: str):
@@ -14,7 +14,7 @@ def _signup(client, email: str, password: str, full_name: str):
     )
     assert response.status_code == 201
     verify_otp(client, email)
-    return response.json()
+    return {"id": get_user_id(email)}
 
 
 def _login(client, email: str, password: str):
