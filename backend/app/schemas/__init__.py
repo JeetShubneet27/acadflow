@@ -1,4 +1,4 @@
-from app.schemas.auth import LoginRequest, Token
+from app.schemas.auth import LoginRequest, OtpChallenge, OtpResendRequest, OtpVerifyRequest, Token
 from app.schemas.annotation import AnnotationCreate, AnnotationOut, AnnotationUpdate
 from app.schemas.audit import ActivityEventOut, AuditEventOut
 from app.schemas.draft import DraftOut
@@ -28,6 +28,9 @@ from app.schemas.user import UserCreate, UserOut, UserRoleUpdate
 
 __all__ = [
     "LoginRequest",
+    "OtpChallenge",
+    "OtpResendRequest",
+    "OtpVerifyRequest",
     "Token",
     "AnnotationCreate",
     "AnnotationOut",

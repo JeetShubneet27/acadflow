@@ -6,6 +6,7 @@ from app.models.draft import Draft
 from app.models.draft_annotation import DraftAnnotation
 from app.models.draft_lock import DraftLock
 from app.models.audit_event import AuditEvent
+from app.models.email_otp import EmailOTP
 from app.models.review import Review
 from app.models.plagiarism import PlagiarismJob
 
@@ -18,6 +19,7 @@ __all__ = [
     "DraftAnnotation",
     "DraftLock",
     "AuditEvent",
+    "EmailOTP",
     "Review",
     "PlagiarismJob",
 ]

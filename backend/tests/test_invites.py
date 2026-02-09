@@ -4,7 +4,7 @@ from app.db.session import SessionLocal
 from app.models.enums import InviteStatus, RoleEnum
 from app.models.project_invite import ProjectInvite
 
-from tests.utils import set_user_role
+from tests.utils import set_user_role, verify_otp
 
 
 def _signup(client, email: str, password: str, full_name: str):
@@ -13,13 +13,14 @@ def _signup(client, email: str, password: str, full_name: str):
         json={"email": email, "full_name": full_name, "password": password},
     )
     assert response.status_code == 201
+    verify_otp(client, email)
     return response.json()
 
 
 def _login(client, email: str, password: str):
     response = client.post("/login", json={"email": email, "password": password})
-    assert response.status_code == 200
-    return response.json()["access_token"]
+    assert response.status_code == 202
+    return verify_otp(client, email)
 
 
 def _auth_headers(token: str):

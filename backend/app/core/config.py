@@ -22,6 +22,19 @@ class Settings(BaseSettings):
     )
     invite_expiry_hours: int = 168
     draft_lock_minutes: int = 60
+    otp_secret: str = "change-me"
+    otp_expiry_minutes: int = 10
+    otp_max_attempts: int = 5
+    otp_cooldown_seconds: int = 60
+    otp_test_mode: bool = False
+    otp_test_code: str = "123456"
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from: str = "no-reply@acadflow.com"
+    smtp_use_tls: bool = True
+    smtp_suppress_send: bool = False
 
     class Config:
         env_file = ".env"

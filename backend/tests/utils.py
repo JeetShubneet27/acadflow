@@ -3,6 +3,9 @@ from app.models.enums import RoleEnum
 from app.models.user import User
 
 
+OTP_TEST_CODE = "123456"
+
+
 def set_user_role(email: str, role: RoleEnum) -> None:
     db = SessionLocal()
     try:
@@ -12,3 +15,9 @@ def set_user_role(email: str, role: RoleEnum) -> None:
             db.commit()
     finally:
         db.close()
+
+
+def verify_otp(client, email: str) -> str:
+    response = client.post("/auth/otp/verify", json={"email": email, "otp": OTP_TEST_CODE})
+    assert response.status_code == 200
+    return response.json()["access_token"]

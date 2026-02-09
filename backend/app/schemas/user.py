@@ -11,6 +11,7 @@ class UserBase(BaseModel):
     email: EmailStr
     full_name: str
     role: RoleEnum
+    is_email_verified: bool
 
     class Config:
         orm_mode = True

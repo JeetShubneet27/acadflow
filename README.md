@@ -75,6 +75,19 @@ status (pending/paid/waived) as needed.
 - Payment is verified automatically and report access is gated on payment
 - Webhook: `POST /plagiarism/razorpay/webhook`
 
+### Email verification (OTP)
+
+AcadFlow requires OTP verification for both signup and login. Configure SMTP:
+
+```
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_USERNAME=
+SMTP_PASSWORD=
+SMTP_FROM=no-reply@acadflow.com
+SMTP_USE_TLS=true
+```
+
 ### Faculty verification
 
 - Faculty roles require official institutional email domains

@@ -14,3 +14,18 @@ class LoginRequest(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+
+class OtpChallenge(BaseModel):
+    otp_required: bool = True
+    email: EmailStr
+    expires_in: int
+
+
+class OtpVerifyRequest(BaseModel):
+    email: EmailStr
+    otp: str
+
+
+class OtpResendRequest(BaseModel):
+    email: EmailStr
