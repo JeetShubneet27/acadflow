@@ -10,6 +10,7 @@ export default function LoginPage() {
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState("student");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,7 +21,7 @@ export default function LoginPage() {
     try {
       const response = await apiFetch<{ access_token: string }>("/login", {
         method: "POST",
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, role }),
       });
       await login(response.access_token);
       router.push("/dashboard");
@@ -57,6 +58,22 @@ export default function LoginPage() {
             className="input"
             required
           />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-[var(--color-text)]">
+            Login as
+          </label>
+          <select
+            value={role}
+            onChange={(event) => setRole(event.target.value)}
+            className="select"
+          >
+            <option value="student">Student</option>
+            <option value="faculty">Faculty</option>
+          </select>
+          <p className="text-xs text-[var(--color-muted)]">
+            Faculty accounts must use official institutional emails.
+          </p>
         </div>
         {error && (
           <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
