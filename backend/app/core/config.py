@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     smtp_from: str = "no-reply@acadflow.com"
     smtp_use_tls: bool = True
     smtp_suppress_send: bool = False
+    public_plagiarism_enabled: bool = False
 
     class Config:
         env_file = ".env"

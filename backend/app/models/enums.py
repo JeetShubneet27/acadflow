@@ -56,3 +56,8 @@ class DraftLockStatus(str, enum.Enum):
 class AnnotationStatus(str, enum.Enum):
     open = "open"
     resolved = "resolved"
+
+
+class WorkspaceFormat(str, enum.Enum):
+    word = "word"
+    latex = "latex"

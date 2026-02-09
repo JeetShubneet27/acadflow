@@ -70,12 +70,6 @@ export default function Navigation() {
           ) : (
             <>
               <Link
-                href="/plagiarism"
-                className="text-sm font-medium text-[var(--color-muted)] hover:text-[var(--color-text)]"
-              >
-                Plagiarism check
-              </Link>
-              <Link
                 href="/login"
                 className="text-sm font-medium text-[var(--color-muted)] hover:text-[var(--color-text)]"
               >

@@ -41,6 +41,24 @@ type DraftLock = {
   released_at?: string | null;
 };
 
+type WorkspaceDocument = {
+  id: number;
+  title: string;
+  format: string;
+  latest_version?: number | null;
+  latest_updated_at?: string | null;
+};
+
+type WorkspaceLock = {
+  id: number;
+  document_id: number;
+  locked_by_id: number;
+  status: string;
+  locked_at: string;
+  expires_at: string;
+  released_at?: string | null;
+};
+
 type Invite = {
   id: number;
   project_id: number;
@@ -138,6 +156,17 @@ export default function ProjectDetailPage() {
   const [draftLocks, setDraftLocks] = useState<Record<number, DraftLock | null>>(
     {},
   );
+  const [workspaceDocs, setWorkspaceDocs] = useState<WorkspaceDocument[]>([]);
+  const [workspaceLocks, setWorkspaceLocks] = useState<
+    Record<number, WorkspaceLock | null>
+  >({});
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<number | null>(
+    null,
+  );
+  const [workspaceLatexContent, setWorkspaceLatexContent] = useState("");
+  const [newWorkspaceTitle, setNewWorkspaceTitle] = useState("");
+  const [newWorkspaceFormat, setNewWorkspaceFormat] = useState("word");
+  const [newWorkspaceContent, setNewWorkspaceContent] = useState("");
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [selectedDraftId, setSelectedDraftId] = useState<number | null>(null);
   const [annotationBody, setAnnotationBody] = useState("");
@@ -162,6 +191,7 @@ export default function ProjectDetailPage() {
         jobData,
         permissionsData,
         activityData,
+        workspaceDocsData,
       ] = await Promise.all([
         apiFetch<Project>(`/projects/${projectId}`),
         apiFetch<Member[]>(`/projects/${projectId}/members`),
@@ -170,6 +200,9 @@ export default function ProjectDetailPage() {
         apiFetch<Job[]>(`/plagiarism/jobs`),
         apiFetch<Permissions>(`/projects/${projectId}/permissions`),
         apiFetch<ActivityEvent[]>(`/projects/${projectId}/activity`),
+        apiFetch<WorkspaceDocument[]>(
+          `/projects/${projectId}/workspace/documents`,
+        ),
       ]);
       setProject(projectData);
       setMembers(memberData);
@@ -178,8 +211,12 @@ export default function ProjectDetailPage() {
       setJobs(jobData.filter((job) => job.project_id === projectId));
       setPermissions(permissionsData);
       setActivity(activityData);
+      setWorkspaceDocs(workspaceDocsData);
       if (!selectedDraftId && draftData.length > 0) {
         setSelectedDraftId(draftData[0].id);
+      }
+      if (!selectedWorkspaceId && workspaceDocsData.length > 0) {
+        setSelectedWorkspaceId(workspaceDocsData[0].id);
       }
       const inviteResult = await Promise.allSettled([
         apiFetch<Invite[]>(`/projects/${projectId}/invites`),
@@ -204,6 +241,18 @@ export default function ProjectDetailPage() {
         lockMap[draft.id] = result.status === "fulfilled" ? result.value : null;
       });
       setDraftLocks(lockMap);
+      const workspaceLockResults = await Promise.allSettled(
+        workspaceDocsData.map((doc) =>
+          apiFetch<WorkspaceLock>(`/workspace/documents/${doc.id}/lock`),
+        ),
+      );
+      const workspaceLockMap: Record<number, WorkspaceLock | null> = {};
+      workspaceDocsData.forEach((doc, index) => {
+        const result = workspaceLockResults[index];
+        workspaceLockMap[doc.id] =
+          result.status === "fulfilled" ? result.value : null;
+      });
+      setWorkspaceLocks(workspaceLockMap);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load project");
@@ -234,6 +283,29 @@ export default function ProjectDetailPage() {
     };
     fetchAnnotations();
   }, [selectedDraftId]);
+
+  useEffect(() => {
+    const fetchWorkspaceLatex = async () => {
+      if (!selectedWorkspaceId) {
+        setWorkspaceLatexContent("");
+        return;
+      }
+      const doc = workspaceDocs.find((item) => item.id === selectedWorkspaceId);
+      if (!doc || doc.format !== "latex") {
+        setWorkspaceLatexContent("");
+        return;
+      }
+      try {
+        const response = await apiFetch<{ content: string }>(
+          `/workspace/documents/${selectedWorkspaceId}/latex`,
+        );
+        setWorkspaceLatexContent(response.content);
+      } catch (err) {
+        setWorkspaceLatexContent("");
+      }
+    };
+    fetchWorkspaceLatex();
+  }, [selectedWorkspaceId, workspaceDocs]);
 
   const handleInvite = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -345,6 +417,127 @@ export default function ProjectDetailPage() {
       setDraftLocks((prev) => ({ ...prev, [draftId]: lock }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to unlock draft");
+    }
+  };
+
+  const handleWorkspaceCreate = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+    if (!newWorkspaceTitle) {
+      setError("Workspace document title is required.");
+      return;
+    }
+    const form = event.currentTarget;
+    try {
+      if (newWorkspaceFormat === "word") {
+        const fileInput = form.elements.namedItem(
+          "workspace-file",
+        ) as HTMLInputElement;
+        if (!fileInput.files || fileInput.files.length === 0) {
+          setError("Please attach a DOC/DOCX file.");
+          return;
+        }
+        const formData = new FormData();
+        formData.append("title", newWorkspaceTitle);
+        formData.append("file", fileInput.files[0]);
+        await apiFetch(`/projects/${projectId}/workspace/documents/word`, {
+          method: "POST",
+          body: formData,
+        });
+      } else {
+        await apiFetch(`/projects/${projectId}/workspace/documents/latex`, {
+          method: "POST",
+          body: JSON.stringify({
+            title: newWorkspaceTitle,
+            content: newWorkspaceContent,
+          }),
+        });
+      }
+      form.reset();
+      setNewWorkspaceTitle("");
+      setNewWorkspaceFormat("word");
+      setNewWorkspaceContent("");
+      await load();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to create workspace document",
+      );
+    }
+  };
+
+  const handleWorkspaceSelect = (documentId: number) => {
+    setSelectedWorkspaceId(documentId);
+  };
+
+  const handleWorkspaceLatexSave = async () => {
+    if (!selectedWorkspaceId) {
+      return;
+    }
+    try {
+      await apiFetch(`/workspace/documents/${selectedWorkspaceId}/latex`, {
+        method: "PUT",
+        body: JSON.stringify({ content: workspaceLatexContent }),
+      });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to save LaTeX draft");
+    }
+  };
+
+  const handleWorkspaceWordUpload = async (
+    documentId: number,
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const fileInput = form.elements.namedItem(
+      `workspace-upload-${documentId}`,
+    ) as HTMLInputElement;
+    if (!fileInput.files || fileInput.files.length === 0) {
+      return;
+    }
+    const formData = new FormData();
+    formData.append("file", fileInput.files[0]);
+    try {
+      await apiFetch(`/workspace/documents/${documentId}/revisions`, {
+        method: "POST",
+        body: formData,
+      });
+      form.reset();
+      await load();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to upload new version",
+      );
+    }
+  };
+
+  const handleWorkspaceLock = async (documentId: number) => {
+    try {
+      const lock = await apiFetch<WorkspaceLock>(
+        `/workspace/documents/${documentId}/lock`,
+        {
+          method: "POST",
+        },
+      );
+      setWorkspaceLocks((prev) => ({ ...prev, [documentId]: lock }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to lock document");
+    }
+  };
+
+  const handleWorkspaceUnlock = async (documentId: number) => {
+    try {
+      const lock = await apiFetch<WorkspaceLock>(
+        `/workspace/documents/${documentId}/lock`,
+        {
+          method: "DELETE",
+        },
+      );
+      setWorkspaceLocks((prev) => ({ ...prev, [documentId]: lock }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to unlock document");
     }
   };
 
@@ -549,6 +742,16 @@ export default function ProjectDetailPage() {
       setPayingJobId(null);
     }
   };
+
+  const selectedWorkspaceDoc =
+    workspaceDocs.find((doc) => doc.id === selectedWorkspaceId) || null;
+  const selectedWorkspaceLock = selectedWorkspaceDoc
+    ? workspaceLocks[selectedWorkspaceDoc.id]
+    : null;
+  const selectedWorkspaceIsLocked = selectedWorkspaceLock?.status === "active";
+  const selectedWorkspaceLockedByOther =
+    selectedWorkspaceIsLocked &&
+    selectedWorkspaceLock?.locked_by_id !== user?.id;
 
   if (!user) {
     return (
@@ -771,6 +974,172 @@ export default function ProjectDetailPage() {
             <li className="text-[var(--color-muted)]">No drafts uploaded yet.</li>
           )}
         </ul>
+      </SectionCard>
+
+      <SectionCard
+        title="Workspace documents"
+        description="Collaborate on Word and LaTeX manuscripts with versioned updates."
+      >
+        <form onSubmit={handleWorkspaceCreate} className="grid gap-3 md:grid-cols-2">
+          <input
+            type="text"
+            value={newWorkspaceTitle}
+            onChange={(event) => setNewWorkspaceTitle(event.target.value)}
+            placeholder="Document title"
+            className="input"
+            required
+          />
+          <select
+            value={newWorkspaceFormat}
+            onChange={(event) => {
+              const value = event.target.value;
+              setNewWorkspaceFormat(value);
+              if (value === "word") {
+                setNewWorkspaceContent("");
+              }
+            }}
+            className="select"
+          >
+            <option value="word">Word (DOC/DOCX)</option>
+            <option value="latex">LaTeX</option>
+          </select>
+          {newWorkspaceFormat === "word" ? (
+            <input
+              type="file"
+              name="workspace-file"
+              className="text-sm md:col-span-2"
+              required
+            />
+          ) : (
+            <textarea
+              value={newWorkspaceContent}
+              onChange={(event) => setNewWorkspaceContent(event.target.value)}
+              placeholder="Start your LaTeX manuscript..."
+              className="textarea md:col-span-2"
+              rows={4}
+            />
+          )}
+          <button type="submit" className="btn btn-primary md:col-span-2">
+            Create workspace document
+          </button>
+        </form>
+
+        <div className="mt-4 space-y-3 text-sm text-[var(--color-muted)]">
+          {workspaceDocs.map((doc) => {
+            const lock = workspaceLocks[doc.id];
+            const isLocked = lock?.status === "active";
+            return (
+              <div
+                key={doc.id}
+                className="rounded-xl border border-[var(--color-border)] px-3 py-3"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <div className="font-medium text-[var(--color-text)]">
+                      {doc.title}
+                    </div>
+                    <div className="text-xs text-[var(--color-muted)]">
+                      {doc.format.toUpperCase()} • v{doc.latest_version ?? 1}
+                      {doc.latest_updated_at && (
+                        <> • Updated {new Date(doc.latest_updated_at).toLocaleString()}</>
+                      )}
+                    </div>
+                    <div className="text-xs text-[var(--color-muted)]">
+                      {isLocked
+                        ? `Locked by user #${lock?.locked_by_id}`
+                        : "No active lock"}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {doc.format === "latex" && (
+                      <button
+                        type="button"
+                        onClick={() => handleWorkspaceSelect(doc.id)}
+                        className="btn btn-secondary btn-xs"
+                      >
+                        Open
+                      </button>
+                    )}
+                    {isLocked ? (
+                      <button
+                        type="button"
+                        onClick={() => handleWorkspaceUnlock(doc.id)}
+                        className="btn btn-secondary btn-xs"
+                      >
+                        Release lock
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleWorkspaceLock(doc.id)}
+                        className="btn btn-primary btn-xs"
+                      >
+                        Lock
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {doc.format === "word" && (
+                  <form
+                    onSubmit={(event) => handleWorkspaceWordUpload(doc.id, event)}
+                    className="mt-3 flex flex-wrap items-center gap-3"
+                  >
+                    <input
+                      type="file"
+                      name={`workspace-upload-${doc.id}`}
+                      className="text-sm"
+                      required
+                    />
+                    <button type="submit" className="btn btn-primary btn-xs">
+                      Upload new version
+                    </button>
+                  </form>
+                )}
+              </div>
+            );
+          })}
+          {workspaceDocs.length === 0 && (
+            <div className="text-[var(--color-muted)]">
+              No workspace documents yet.
+            </div>
+          )}
+        </div>
+
+        {selectedWorkspaceDoc?.format === "latex" && (
+          <div className="mt-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm font-semibold text-[var(--color-text)]">
+                Editing {selectedWorkspaceDoc.title}
+              </div>
+              <div className="text-xs text-[var(--color-muted)]">
+                {selectedWorkspaceIsLocked
+                  ? `Locked by user #${selectedWorkspaceLock?.locked_by_id}`
+                  : "No active lock"}
+              </div>
+            </div>
+            <textarea
+              value={workspaceLatexContent}
+              onChange={(event) => setWorkspaceLatexContent(event.target.value)}
+              className="textarea mt-3 w-full"
+              rows={8}
+            />
+            <div className="mt-3 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={handleWorkspaceLatexSave}
+                disabled={selectedWorkspaceLockedByOther}
+                className="btn btn-primary btn-xs disabled:opacity-60"
+              >
+                Save new version
+              </button>
+              {selectedWorkspaceLockedByOther && (
+                <span className="text-xs text-[var(--color-muted)]">
+                  Locked by another collaborator.
+                </span>
+              )}
+            </div>
+          </div>
+        )}
       </SectionCard>
 
       {permissions?.can_comment && (

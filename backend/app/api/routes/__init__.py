@@ -1,4 +1,15 @@
-from app.api.routes import annotations, audit, auth, drafts, maintenance, plagiarism, projects, reviews, users
+from app.api.routes import (
+    annotations,
+    audit,
+    auth,
+    drafts,
+    maintenance,
+    plagiarism,
+    projects,
+    reviews,
+    users,
+    workspace,
+)
 
 __all__ = [
     "annotations",
@@ -10,4 +21,5 @@ __all__ = [
     "projects",
     "reviews",
     "users",
+    "workspace",
 ]

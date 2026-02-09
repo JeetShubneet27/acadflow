@@ -62,12 +62,14 @@ Environment variables (see `frontend/.env.example`):
 3. Faculty performs external Turnitin review
 4. Faculty uploads a report to mark job `completed`
 
-### Public plagiarism submissions
+### Authenticated plagiarism submissions
 
-AcadFlow supports public (non-authenticated) plagiarism submissions. The system
-issues a job ID and access token so the submitter can check status and download
-the report later. Pricing is stored per job and faculty can update payment
-status (pending/paid/waived) as needed.
+Plagiarism checks now require authentication. Users submit manuscripts from a
+project workspace, and faculty upload the final report once the review is
+complete. Pricing is stored per job and report access is gated on payment.
+
+To re-enable public submissions, set `PUBLIC_PLAGIARISM_ENABLED=true` in the
+backend environment.
 
 ### Payments (India)
 
@@ -92,6 +94,14 @@ SMTP_USE_TLS=true
 
 - Faculty roles require official institutional email domains
 - Public email providers (e.g. Gmail/Yahoo/Outlook) are blocked for faculty
+
+## Workspace documents
+
+AcadFlow includes a workspace for Word (DOC/DOCX) and LaTeX manuscripts:
+
+- Word documents are versioned by uploading new revisions.
+- LaTeX documents are edited in a shared text workspace with version history.
+- Workspace documents support locks to avoid conflicting edits.
 
 ## Deployment
 

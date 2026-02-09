@@ -21,5 +21,6 @@ class Project(Base):
     members = relationship("ProjectMember", back_populates="project")
     invites = relationship("ProjectInvite", back_populates="project")
     drafts = relationship("Draft", back_populates="project")
+    workspace_documents = relationship("WorkspaceDocument", back_populates="project")
     reviews = relationship("Review", back_populates="project")
     plagiarism_jobs = relationship("PlagiarismJob", back_populates="project")

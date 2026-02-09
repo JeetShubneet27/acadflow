@@ -25,6 +25,13 @@ from app.schemas.project import (
 )
 from app.schemas.review import ReviewAssign, ReviewOut, ReviewSubmit
 from app.schemas.user import UserCreate, UserOut, UserRoleUpdate
+from app.schemas.workspace import (
+    WorkspaceDocumentCreate,
+    WorkspaceDocumentOut,
+    WorkspaceLatexUpdate,
+    WorkspaceLockOut,
+    WorkspaceRevisionOut,
+)
 
 __all__ = [
     "LoginRequest",
@@ -63,4 +70,9 @@ __all__ = [
     "UserCreate",
     "UserOut",
     "UserRoleUpdate",
+    "WorkspaceDocumentCreate",
+    "WorkspaceDocumentOut",
+    "WorkspaceLatexUpdate",
+    "WorkspaceLockOut",
+    "WorkspaceRevisionOut",
 ]

@@ -11,6 +11,7 @@ from app.api.routes import (
     projects,
     reviews,
     users,
+    workspace,
 )
 from app.core.config import settings
 from app.db.base import Base
@@ -36,6 +37,7 @@ def create_app() -> FastAPI:
     app.include_router(drafts.router)
     app.include_router(reviews.router)
     app.include_router(plagiarism.router)
+    app.include_router(workspace.router)
     app.include_router(annotations.router)
     app.include_router(audit.router)
     app.include_router(maintenance.router)

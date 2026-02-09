@@ -50,6 +50,14 @@ def _ensure_project_access(db: Session, project: Project, user: User) -> None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
 
 
+def _ensure_public_plagiarism_enabled() -> None:
+    if not settings.public_plagiarism_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Public plagiarism checks are disabled. Please log in.",
+        )
+
+
 def _build_upi_uri(job: PlagiarismJob) -> str:
     amount = f"{job.amount_cents / 100:.2f}"
     params = {
@@ -142,6 +150,7 @@ def create_public_job(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
 ) -> PublicPlagiarismJobOut:
+    _ensure_public_plagiarism_enabled()
     validate_upload_file(file)
     storage_dir = f"{settings.storage_dir}/plagiarism"
     file_path, original_filename = save_upload_file(file, storage_dir, "public-plagiarism")
@@ -183,6 +192,7 @@ def create_public_razorpay_order(
     access_token: str,
     db: Session = Depends(get_db),
 ) -> RazorpayOrderOut:
+    _ensure_public_plagiarism_enabled()
     job = db.get(PlagiarismJob, job_id)
     if not job or not job.is_public:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
@@ -223,6 +233,7 @@ def verify_public_razorpay_payment(
     access_token: str,
     db: Session = Depends(get_db),
 ) -> PlagiarismJob:
+    _ensure_public_plagiarism_enabled()
     job = db.get(PlagiarismJob, job_id)
     if not job or not job.is_public:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
@@ -260,6 +271,7 @@ def get_public_payment_details(
     access_token: str,
     db: Session = Depends(get_db),
 ) -> PaymentDetailsOut:
+    _ensure_public_plagiarism_enabled()
     job = db.get(PlagiarismJob, job_id)
     if not job or not job.is_public:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
@@ -284,6 +296,7 @@ def submit_public_payment_reference(
     access_token: str,
     db: Session = Depends(get_db),
 ) -> PlagiarismJob:
+    _ensure_public_plagiarism_enabled()
     job = db.get(PlagiarismJob, job_id)
     if not job or not job.is_public:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
@@ -387,6 +400,7 @@ def get_public_job_status(
     access_token: str,
     db: Session = Depends(get_db),
 ) -> PlagiarismJob:
+    _ensure_public_plagiarism_enabled()
     job = db.get(PlagiarismJob, job_id)
     if not job or not job.is_public:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
@@ -401,6 +415,7 @@ def download_public_report(
     access_token: str,
     db: Session = Depends(get_db),
 ):
+    _ensure_public_plagiarism_enabled()
     job = db.get(PlagiarismJob, job_id)
     if not job or not job.is_public:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
