@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import smtplib
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -53,6 +54,19 @@ def _create_otp(db: Session, user: User, purpose: str) -> EmailOTP:
         )
     except RuntimeError as exc:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
+    except smtplib.SMTPAuthenticationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="SMTP authentication failed. Check username/password or app password.",
+        ) from exc
+    except smtplib.SMTPConnectError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="SMTP connection failed. Check host, port, and TLS settings.",
+        ) from exc
+    except smtplib.SMTPException as exc:
+        detail = str(exc).strip() or "SMTP error"
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=detail) from exc
     except Exception as exc:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to send OTP") from exc
     return otp
