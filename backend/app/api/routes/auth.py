@@ -66,9 +66,16 @@ def _create_otp(db: Session, user: User, purpose: str) -> EmailOTP:
         ) from exc
     except smtplib.SMTPException as exc:
         detail = str(exc).strip() or "SMTP error"
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=detail) from exc
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"SMTP error: {detail}",
+        ) from exc
     except Exception as exc:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to send OTP") from exc
+        detail = str(exc).strip() or exc.__class__.__name__
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to send OTP: {exc.__class__.__name__}: {detail}",
+        ) from exc
     return otp
 
 
