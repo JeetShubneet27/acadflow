@@ -79,7 +79,7 @@ backend environment.
 
 ### Email verification (OTP)
 
-AcadFlow requires OTP verification for both signup and login. Configure SMTP:
+AcadFlow requires OTP verification during signup only. Configure SMTP:
 
 ```
 SMTP_HOST=

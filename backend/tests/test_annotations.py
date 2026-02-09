@@ -15,8 +15,8 @@ def _signup(client, email: str, password: str, full_name: str):
 
 def _login(client, email: str, password: str):
     response = client.post("/login", json={"email": email, "password": password})
-    assert response.status_code == 202
-    return verify_otp(client, email)
+    assert response.status_code == 200
+    return response.json()["access_token"]
 
 
 def _auth_headers(token: str):

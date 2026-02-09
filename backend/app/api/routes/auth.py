@@ -82,19 +82,21 @@ def signup(payload: UserCreate, db: Session = Depends(get_db)) -> OtpChallenge:
     db.add(user)
     db.commit()
     db.refresh(user)
-    _create_otp(db, user, purpose="login")
+    _create_otp(db, user, purpose="signup")
     return OtpChallenge(email=user.email, expires_in=settings.otp_expiry_minutes * 60)
 
 
-@router.post("/login", response_model=OtpChallenge, status_code=status.HTTP_202_ACCEPTED)
-def login(payload: LoginRequest, db: Session = Depends(get_db)) -> OtpChallenge:
+@router.post("/login", response_model=Token)
+def login(payload: LoginRequest, db: Session = Depends(get_db)) -> Token:
     user = db.query(User).filter(User.email == payload.email).first()
     if not user or not verify_password(payload.password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     if payload.role and user.role != payload.role:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Role mismatch")
-    _create_otp(db, user, purpose="login")
-    return OtpChallenge(email=user.email, expires_in=settings.otp_expiry_minutes * 60)
+    if not user.is_email_verified:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Email not verified")
+    access_token = create_access_token(subject=str(user.id), role=user.role.value)
+    return Token(access_token=access_token)
 
 
 @router.post("/auth/otp/verify", response_model=Token)
@@ -106,12 +108,25 @@ def verify_otp(payload: OtpVerifyRequest, db: Session = Depends(get_db)) -> Toke
         db.query(EmailOTP)
         .filter(
             EmailOTP.email == payload.email,
-            EmailOTP.purpose == "login",
+            EmailOTP.purpose == "signup",
             EmailOTP.consumed_at.is_(None),
         )
         .order_by(EmailOTP.created_at.desc())
         .first()
     )
+    purpose = "signup"
+    if not otp:
+        otp = (
+            db.query(EmailOTP)
+            .filter(
+                EmailOTP.email == payload.email,
+                EmailOTP.purpose == "login",
+                EmailOTP.consumed_at.is_(None),
+            )
+            .order_by(EmailOTP.created_at.desc())
+            .first()
+        )
+        purpose = "login"
     if not otp:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="OTP not found")
     if otp.expires_at < datetime.utcnow():
@@ -122,7 +137,7 @@ def verify_otp(payload: OtpVerifyRequest, db: Session = Depends(get_db)) -> Toke
     is_valid = False
     if settings.otp_test_mode and payload.otp == settings.otp_test_code:
         is_valid = True
-    elif hash_otp(payload.email, "login", payload.otp) == otp.otp_hash:
+    elif hash_otp(payload.email, purpose, payload.otp) == otp.otp_hash:
         is_valid = True
     if not is_valid:
         otp.attempts += 1
@@ -144,7 +159,7 @@ def resend_otp(payload: OtpResendRequest, db: Session = Depends(get_db)) -> OtpC
     user = db.query(User).filter(User.email == payload.email).first()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    _create_otp(db, user, purpose="login")
+    _create_otp(db, user, purpose="signup")
     return OtpChallenge(email=user.email, expires_in=settings.otp_expiry_minutes * 60)
 
 
