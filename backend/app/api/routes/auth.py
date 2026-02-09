@@ -28,7 +28,7 @@ def _create_otp(db: Session, user: User, purpose: str) -> EmailOTP:
         .first()
     )
     if existing and existing.last_sent_at + timedelta(seconds=settings.otp_cooldown_seconds) > now:
-        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="OTP recently sent")
+        return existing
     if existing:
         existing.consumed_at = now
         db.commit()

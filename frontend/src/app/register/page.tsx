@@ -40,7 +40,11 @@ export default function RegisterPage() {
         setOtpExpiresIn(response.expires_in);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Registration failed");
+      const message = err instanceof Error ? err.message : "Registration failed";
+      setError(message);
+      if (message.includes("OTP recently sent")) {
+        setOtpStep(true);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -153,6 +157,13 @@ export default function RegisterPage() {
           >
             {isSubmitting ? "Sending OTP..." : "Send OTP"}
           </button>
+          <button
+            type="button"
+            onClick={() => setOtpStep(true)}
+            className="btn btn-ghost w-full"
+          >
+            Already have a code? Verify email
+          </button>
         </form>
       ) : (
         <form onSubmit={handleVerifyOtp} className="mt-6 space-y-4">
@@ -171,6 +182,9 @@ export default function RegisterPage() {
             <p className="text-xs text-[var(--color-muted)]">
               OTP sent to {email}.{" "}
               {otpExpiresIn ? `Expires in ${Math.ceil(otpExpiresIn / 60)} min.` : ""}
+            </p>
+            <p className="text-xs text-[var(--color-muted)]">
+              Check spam/junk folders if you don’t see the email.
             </p>
           </div>
           {error && (
