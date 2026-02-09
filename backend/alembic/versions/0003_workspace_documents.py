@@ -7,6 +7,7 @@ Create Date: 2026-02-08
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 
 revision = "0003_workspace_documents"
@@ -50,7 +51,13 @@ def upgrade():
         sa.Column("locked_by_id", sa.Integer(), sa.ForeignKey("users.id"), nullable=False),
         sa.Column(
             "status",
-            sa.Enum("active", "released", "expired", name="draftlockstatus", create_type=False),
+            postgresql.ENUM(
+                "active",
+                "released",
+                "expired",
+                name="draftlockstatus",
+                create_type=False,
+            ),
             nullable=False,
         ),
         sa.Column("locked_at", sa.DateTime(), nullable=False),
