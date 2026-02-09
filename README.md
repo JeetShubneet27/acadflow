@@ -100,8 +100,18 @@ SMTP_USE_TLS=true
 AcadFlow includes a workspace for Word (DOC/DOCX) and LaTeX manuscripts:
 
 - Word documents are versioned by uploading new revisions.
-- LaTeX documents are edited in a shared text workspace with version history.
+- LaTeX documents are edited in a shared text workspace with version history and live co-editing.
 - Workspace documents support locks to avoid conflicting edits.
+- PDF previews for LaTeX require a server-side compiler (see below).
+
+### LaTeX PDF preview
+
+To enable PDF previews, install the `tectonic` binary in your backend runtime and set:
+
+```
+LATEX_PREVIEW_PROVIDER=tectonic
+LATEX_PREVIEW_TIMEOUT_SECONDS=30
+```
 
 ## Deployment
 

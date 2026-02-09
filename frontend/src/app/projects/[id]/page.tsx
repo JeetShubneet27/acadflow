@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import SectionCard from "@/components/SectionCard";
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
@@ -167,6 +167,20 @@ export default function ProjectDetailPage() {
   const [newWorkspaceTitle, setNewWorkspaceTitle] = useState("");
   const [newWorkspaceFormat, setNewWorkspaceFormat] = useState("word");
   const [newWorkspaceContent, setNewWorkspaceContent] = useState("");
+  const [workspacePreviewUrl, setWorkspacePreviewUrl] = useState<string | null>(
+    null,
+  );
+  const [workspacePreviewError, setWorkspacePreviewError] = useState<string | null>(
+    null,
+  );
+  const [workspacePreviewLoading, setWorkspacePreviewLoading] = useState(false);
+  const [activeEditors, setActiveEditors] = useState<number[]>([]);
+  const workspaceSocketRef = useRef<WebSocket | null>(null);
+  const workspaceRemoteUpdate = useRef(false);
+  const workspaceBroadcastTimer = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const workspacePreviewUrlRef = useRef<string | null>(null);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [selectedDraftId, setSelectedDraftId] = useState<number | null>(null);
   const [annotationBody, setAnnotationBody] = useState("");
@@ -306,6 +320,95 @@ export default function ProjectDetailPage() {
     };
     fetchWorkspaceLatex();
   }, [selectedWorkspaceId, workspaceDocs]);
+
+  useEffect(() => {
+    if (workspacePreviewUrlRef.current) {
+      window.URL.revokeObjectURL(workspacePreviewUrlRef.current);
+      workspacePreviewUrlRef.current = null;
+    }
+    setWorkspacePreviewUrl(null);
+    setWorkspacePreviewError(null);
+  }, [selectedWorkspaceId]);
+
+  useEffect(() => {
+    if (!selectedWorkspaceId) {
+      return;
+    }
+    const doc = workspaceDocs.find((item) => item.id === selectedWorkspaceId);
+    if (!doc || doc.format !== "latex") {
+      return;
+    }
+    const token = getToken();
+    if (!token) {
+      return;
+    }
+    const baseUrl =
+      process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+    const wsBaseUrl = baseUrl.replace(/^http/, "ws");
+    const socket = new WebSocket(
+      `${wsBaseUrl}/workspace/documents/${selectedWorkspaceId}/live?token=${encodeURIComponent(
+        token,
+      )}`,
+    );
+    workspaceSocketRef.current = socket;
+
+    socket.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        if (message.type === "init" || message.type === "content") {
+          workspaceRemoteUpdate.current = true;
+          setWorkspaceLatexContent(message.content ?? "");
+          setTimeout(() => {
+            workspaceRemoteUpdate.current = false;
+          }, 0);
+        }
+        if (message.type === "presence") {
+          setActiveEditors(message.active_users ?? []);
+        }
+        if (message.type === "init" && message.active_users) {
+          setActiveEditors(message.active_users);
+        }
+      } catch (err) {
+        // ignore malformed websocket messages
+      }
+    };
+
+    socket.onclose = () => {
+      setActiveEditors([]);
+    };
+
+    return () => {
+      socket.close();
+      workspaceSocketRef.current = null;
+    };
+  }, [selectedWorkspaceId, workspaceDocs]);
+
+  useEffect(() => {
+    if (workspaceRemoteUpdate.current) {
+      return;
+    }
+    const doc = workspaceDocs.find((item) => item.id === selectedWorkspaceId);
+    if (!doc || doc.format !== "latex") {
+      return;
+    }
+    if (workspaceBroadcastTimer.current) {
+      clearTimeout(workspaceBroadcastTimer.current);
+    }
+    workspaceBroadcastTimer.current = setTimeout(() => {
+      const socket = workspaceSocketRef.current;
+      if (!socket || socket.readyState !== WebSocket.OPEN) {
+        return;
+      }
+      socket.send(
+        JSON.stringify({ type: "content", content: workspaceLatexContent }),
+      );
+    }, 300);
+    return () => {
+      if (workspaceBroadcastTimer.current) {
+        clearTimeout(workspaceBroadcastTimer.current);
+      }
+    };
+  }, [workspaceLatexContent, selectedWorkspaceId, workspaceDocs]);
 
   const handleInvite = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -482,6 +585,51 @@ export default function ProjectDetailPage() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to save LaTeX draft");
+    }
+  };
+
+  const handleWorkspacePreview = async () => {
+    if (!selectedWorkspaceId) {
+      return;
+    }
+    const token = getToken();
+    if (!token) {
+      setWorkspacePreviewError("You must be logged in to preview.");
+      return;
+    }
+    const baseUrl =
+      process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+    setWorkspacePreviewLoading(true);
+    setWorkspacePreviewError(null);
+    try {
+      const response = await fetch(
+        `${baseUrl}/workspace/documents/${selectedWorkspaceId}/latex/preview`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ content: workspaceLatexContent }),
+        },
+      );
+      if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || "Preview failed");
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      if (workspacePreviewUrlRef.current) {
+        window.URL.revokeObjectURL(workspacePreviewUrlRef.current);
+      }
+      workspacePreviewUrlRef.current = url;
+      setWorkspacePreviewUrl(url);
+    } catch (err) {
+      setWorkspacePreviewError(
+        err instanceof Error ? err.message : "Unable to generate preview",
+      );
+    } finally {
+      setWorkspacePreviewLoading(false);
     }
   };
 
@@ -1117,6 +1265,13 @@ export default function ProjectDetailPage() {
                   : "No active lock"}
               </div>
             </div>
+            <div className="mt-1 text-xs text-[var(--color-muted)]">
+              {activeEditors.length > 0
+                ? `Active editors: ${activeEditors
+                    .map((id) => `#${id}`)
+                    .join(", ")}`
+                : "Active editors: just you"}
+            </div>
             <textarea
               value={workspaceLatexContent}
               onChange={(event) => setWorkspaceLatexContent(event.target.value)}
@@ -1132,12 +1287,32 @@ export default function ProjectDetailPage() {
               >
                 Save new version
               </button>
+              <button
+                type="button"
+                onClick={handleWorkspacePreview}
+                disabled={workspacePreviewLoading}
+                className="btn btn-secondary btn-xs disabled:opacity-60"
+              >
+                {workspacePreviewLoading ? "Generating preview..." : "Generate PDF preview"}
+              </button>
               {selectedWorkspaceLockedByOther && (
                 <span className="text-xs text-[var(--color-muted)]">
                   Locked by another collaborator.
                 </span>
               )}
             </div>
+            {workspacePreviewError && (
+              <div className="mt-3 text-xs text-red-600">{workspacePreviewError}</div>
+            )}
+            {workspacePreviewUrl && (
+              <div className="mt-4">
+                <iframe
+                  title="LaTeX preview"
+                  src={workspacePreviewUrl}
+                  className="h-[480px] w-full rounded-lg border border-[var(--color-border)]"
+                />
+              </div>
+            )}
           </div>
         )}
       </SectionCard>

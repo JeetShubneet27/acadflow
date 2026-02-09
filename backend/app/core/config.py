@@ -36,6 +36,8 @@ class Settings(BaseSettings):
     smtp_use_tls: bool = True
     smtp_suppress_send: bool = False
     public_plagiarism_enabled: bool = False
+    latex_preview_provider: str = "none"
+    latex_preview_timeout_seconds: int = 30
 
     class Config:
         env_file = ".env"

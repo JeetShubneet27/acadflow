@@ -1,13 +1,19 @@
 from datetime import datetime, timedelta
 from pathlib import Path
+import shutil
+import subprocess
+import tempfile
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, WebSocket, status
+from fastapi.responses import FileResponse, Response
+from jose import JWTError, jwt
 from sqlalchemy.orm import Session
+from starlette.websockets import WebSocketDisconnect
 
 from app.api.deps import get_current_user, get_db
 from app.core.config import settings
+from app.db.session import SessionLocal
 from app.models.enums import DraftLockStatus, MemberStatus, WorkspaceFormat
 from app.models.project import Project
 from app.models.project_member import ProjectMember
@@ -27,6 +33,10 @@ from app.utils.files import save_upload_file
 
 
 router = APIRouter(tags=["workspace"])
+
+LIVE_SESSIONS: dict[int, set[WebSocket]] = {}
+LIVE_PRESENCE: dict[int, dict[WebSocket, int]] = {}
+LIVE_CONTENT: dict[int, str] = {}
 
 
 def _ensure_project_access(db: Session, project: Project, user: User) -> None:
@@ -97,6 +107,85 @@ def _get_active_lock(db: Session, document_id: int) -> Optional[WorkspaceLock]:
         db.refresh(lock)
         return None
     return lock
+
+
+def _get_user_from_token(db: Session, token: str) -> User:
+    try:
+        payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+    except JWTError as exc:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token") from exc
+    subject = payload.get("sub")
+    if subject is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    user = db.get(User, int(subject))
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    return user
+
+
+def _presence_list(document_id: int) -> list[int]:
+    presence = LIVE_PRESENCE.get(document_id, {})
+    return sorted(set(presence.values()))
+
+
+async def _broadcast(document_id: int, message: dict, exclude: Optional[WebSocket] = None) -> None:
+    sessions = list(LIVE_SESSIONS.get(document_id, set()))
+    for socket in sessions:
+        if exclude and socket is exclude:
+            continue
+        try:
+            await socket.send_json(message)
+        except RuntimeError:
+            LIVE_SESSIONS.get(document_id, set()).discard(socket)
+
+
+def _compile_latex_preview(content: str) -> bytes:
+    provider = settings.latex_preview_provider.lower()
+    if provider == "none":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="LaTeX preview is disabled.",
+        )
+    if provider != "tectonic":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unsupported LaTeX preview provider.",
+        )
+    if not shutil.which("tectonic"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="LaTeX compiler is not available on the server.",
+        )
+    with tempfile.TemporaryDirectory() as temp_dir:
+        tex_path = Path(temp_dir) / "main.tex"
+        tex_path.write_text(content, encoding="utf-8")
+        try:
+            subprocess.run(
+                ["tectonic", "--outdir", temp_dir, str(tex_path)],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=settings.latex_preview_timeout_seconds,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise HTTPException(
+                status_code=status.HTTP_408_REQUEST_TIMEOUT,
+                detail="LaTeX compilation timed out.",
+            ) from exc
+        except subprocess.CalledProcessError as exc:
+            error = exc.stderr.decode("utf-8", errors="ignore").strip()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=error or "LaTeX compilation failed.",
+            ) from exc
+
+        pdf_path = Path(temp_dir) / "main.pdf"
+        if not pdf_path.exists():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="LaTeX compilation did not produce a PDF.",
+            )
+        return pdf_path.read_bytes()
 
 
 @router.get("/projects/{project_id}/workspace/documents", response_model=list[WorkspaceDocumentOut])
@@ -278,6 +367,24 @@ def update_latex_content(
     return revision
 
 
+@router.post("/workspace/documents/{document_id}/latex/preview")
+def preview_latex(
+    document_id: int,
+    payload: WorkspaceLatexUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    document = db.get(WorkspaceDocument, document_id)
+    if not document or document.format != WorkspaceFormat.latex:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    project = db.get(Project, document.project_id)
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    _ensure_project_access(db, project, current_user)
+    pdf_bytes = _compile_latex_preview(payload.content)
+    return Response(content=pdf_bytes, media_type="application/pdf")
+
+
 @router.post("/workspace/documents/{document_id}/revisions", response_model=WorkspaceRevisionOut)
 def upload_word_revision(
     document_id: int,
@@ -421,3 +528,85 @@ def release_document_lock(
 
     log_event(db, project.id, current_user.id, "workspace_lock_released", {"document_id": document.id})
     return lock
+
+
+@router.websocket("/workspace/documents/{document_id}/live")
+async def workspace_live(websocket: WebSocket, document_id: int):
+    token = websocket.query_params.get("token")
+    if not token:
+        await websocket.close(code=1008)
+        return
+
+    db = SessionLocal()
+    try:
+        user = _get_user_from_token(db, token)
+        document = db.get(WorkspaceDocument, document_id)
+        if not document or document.format != WorkspaceFormat.latex:
+            await websocket.close(code=1008)
+            return
+        project = db.get(Project, document.project_id)
+        if not project:
+            await websocket.close(code=1008)
+            return
+        _ensure_project_access(db, project, user)
+    except HTTPException:
+        await websocket.close(code=1008)
+        return
+    finally:
+        db.close()
+
+    await websocket.accept()
+
+    LIVE_SESSIONS.setdefault(document_id, set()).add(websocket)
+    LIVE_PRESENCE.setdefault(document_id, {})[websocket] = user.id
+
+    if document_id not in LIVE_CONTENT:
+        db = SessionLocal()
+        try:
+            latest = _latest_revision(db, document_id)
+            LIVE_CONTENT[document_id] = latest.content_text if latest else ""
+        finally:
+            db.close()
+
+    await websocket.send_json(
+        {
+            "type": "init",
+            "document_id": document_id,
+            "content": LIVE_CONTENT.get(document_id, ""),
+            "active_users": _presence_list(document_id),
+        }
+    )
+    await _broadcast(
+        document_id,
+        {"type": "presence", "active_users": _presence_list(document_id)},
+        exclude=websocket,
+    )
+
+    try:
+        while True:
+            payload = await websocket.receive_json()
+            message_type = payload.get("type")
+            if message_type == "content":
+                content = payload.get("content", "")
+                LIVE_CONTENT[document_id] = content
+                await _broadcast(
+                    document_id,
+                    {"type": "content", "content": content, "user_id": user.id},
+                    exclude=websocket,
+                )
+            elif message_type == "ping":
+                await websocket.send_json({"type": "pong"})
+    except WebSocketDisconnect:
+        pass
+    finally:
+        LIVE_SESSIONS.get(document_id, set()).discard(websocket)
+        LIVE_PRESENCE.get(document_id, {}).pop(websocket, None)
+        if not LIVE_SESSIONS.get(document_id):
+            LIVE_SESSIONS.pop(document_id, None)
+            LIVE_PRESENCE.pop(document_id, None)
+            LIVE_CONTENT.pop(document_id, None)
+        else:
+            await _broadcast(
+                document_id,
+                {"type": "presence", "active_users": _presence_list(document_id)},
+            )
