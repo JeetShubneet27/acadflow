@@ -17,10 +17,18 @@ def send_email(to_email: str, subject: str, body: str) -> None:
     message.set_content(body)
 
     if settings.smtp_use_tls:
-        server = smtplib.SMTP(settings.smtp_host, settings.smtp_port)
+        server = smtplib.SMTP(
+            settings.smtp_host,
+            settings.smtp_port,
+            timeout=settings.smtp_timeout_seconds,
+        )
         server.starttls()
     else:
-        server = smtplib.SMTP(settings.smtp_host, settings.smtp_port)
+        server = smtplib.SMTP(
+            settings.smtp_host,
+            settings.smtp_port,
+            timeout=settings.smtp_timeout_seconds,
+        )
     if settings.smtp_username:
         server.login(settings.smtp_username, settings.smtp_password)
     try:
