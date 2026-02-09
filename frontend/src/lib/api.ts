@@ -10,12 +10,14 @@ export async function apiFetch<T>(
   const url = `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
   const token = getToken();
 
-  const headers: HeadersInit = options.headers || {};
+  const headers: Record<string, string> = {
+    ...(options.headers as Record<string, string>),
+  };
   if (!(options.body instanceof FormData)) {
     headers["Content-Type"] = "application/json";
   }
   if (token) {
-    headers.Authorization = `Bearer ${token}`;
+    headers["Authorization"] = `Bearer ${token}`;
   }
 
   const response = await fetch(url, { ...options, headers });
