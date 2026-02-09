@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 from typing import Optional
 
+from diff_match_patch import diff_match_patch
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, WebSocket, status
 from fastapi.responses import FileResponse, Response
 from jose import JWTError, jwt
@@ -27,6 +28,8 @@ from app.schemas.workspace import (
     WorkspaceLatexUpdate,
     WorkspaceLockOut,
     WorkspaceRevisionOut,
+    WorkspaceWordCreate,
+    WorkspaceWordUpdate,
 )
 from app.utils.audit import log_event
 from app.utils.files import save_upload_file
@@ -37,6 +40,8 @@ router = APIRouter(tags=["workspace"])
 LIVE_SESSIONS: dict[int, set[WebSocket]] = {}
 LIVE_PRESENCE: dict[int, dict[WebSocket, int]] = {}
 LIVE_CONTENT: dict[int, str] = {}
+LIVE_VERSION: dict[int, int] = {}
+DMP = diff_match_patch()
 
 
 def _ensure_project_access(db: Session, project: Project, user: User) -> None:
@@ -188,6 +193,74 @@ def _compile_latex_preview(content: str) -> bytes:
         return pdf_path.read_bytes()
 
 
+def _compile_word_preview(content: str, file_path: Optional[str]) -> bytes:
+    provider = settings.word_preview_provider.lower()
+    if provider == "none":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Word preview is disabled.",
+        )
+    if provider == "weasyprint":
+        try:
+            from weasyprint import HTML
+        except ImportError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Word preview provider is not installed.",
+            ) from exc
+        return HTML(string=content or "").write_pdf()
+    if provider == "libreoffice":
+        if not file_path:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No DOCX file available for preview.",
+            )
+        if not shutil.which("soffice"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="LibreOffice is not available on the server.",
+            )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            try:
+                subprocess.run(
+                    [
+                        "soffice",
+                        "--headless",
+                        "--convert-to",
+                        "pdf",
+                        "--outdir",
+                        temp_dir,
+                        file_path,
+                    ],
+                    check=True,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    timeout=settings.word_preview_timeout_seconds,
+                )
+            except subprocess.TimeoutExpired as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_408_REQUEST_TIMEOUT,
+                    detail="Word preview timed out.",
+                ) from exc
+            except subprocess.CalledProcessError as exc:
+                error = exc.stderr.decode("utf-8", errors="ignore").strip()
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=error or "Word preview failed.",
+                ) from exc
+            pdf_candidates = list(Path(temp_dir).glob("*.pdf"))
+            if not pdf_candidates:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Word preview did not produce a PDF.",
+                )
+            return pdf_candidates[0].read_bytes()
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Unsupported Word preview provider.",
+    )
+
+
 @router.get("/projects/{project_id}/workspace/documents", response_model=list[WorkspaceDocumentOut])
 def list_documents(
     project_id: int,
@@ -294,6 +367,47 @@ def create_word_document(
     return _document_out(document, revision)
 
 
+@router.post(
+    "/projects/{project_id}/workspace/documents/word/editor",
+    response_model=WorkspaceDocumentOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_word_editor_document(
+    project_id: int,
+    payload: WorkspaceWordCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> WorkspaceDocumentOut:
+    project = db.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    _ensure_project_access(db, project, current_user)
+
+    document = WorkspaceDocument(
+        project_id=project_id,
+        title=payload.title,
+        format=WorkspaceFormat.word,
+        created_by_id=current_user.id,
+    )
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+
+    revision = WorkspaceRevision(
+        document_id=document.id,
+        version=1,
+        content_text=payload.content,
+        created_by_id=current_user.id,
+    )
+    document.updated_at = datetime.utcnow()
+    db.add(revision)
+    db.commit()
+    db.refresh(revision)
+
+    log_event(db, project_id, current_user.id, "workspace_document_created", {"document_id": document.id})
+    return _document_out(document, revision)
+
+
 @router.get("/workspace/documents/{document_id}/revisions", response_model=list[WorkspaceRevisionOut])
 def list_revisions(
     document_id: int,
@@ -332,6 +446,23 @@ def get_latex_content(
     return WorkspaceLatexUpdate(content=latest.content_text if latest else "")
 
 
+@router.get("/workspace/documents/{document_id}/word", response_model=WorkspaceWordUpdate)
+def get_word_content(
+    document_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> WorkspaceWordUpdate:
+    document = db.get(WorkspaceDocument, document_id)
+    if not document or document.format != WorkspaceFormat.word:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    project = db.get(Project, document.project_id)
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    _ensure_project_access(db, project, current_user)
+    latest = _latest_revision(db, document_id)
+    return WorkspaceWordUpdate(content=latest.content_text if latest else "")
+
+
 @router.put("/workspace/documents/{document_id}/latex", response_model=WorkspaceRevisionOut)
 def update_latex_content(
     document_id: int,
@@ -367,6 +498,41 @@ def update_latex_content(
     return revision
 
 
+@router.put("/workspace/documents/{document_id}/word", response_model=WorkspaceRevisionOut)
+def update_word_content(
+    document_id: int,
+    payload: WorkspaceWordUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> WorkspaceRevision:
+    document = db.get(WorkspaceDocument, document_id)
+    if not document or document.format != WorkspaceFormat.word:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    project = db.get(Project, document.project_id)
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    _ensure_project_access(db, project, current_user)
+
+    lock = _get_active_lock(db, document_id)
+    if lock and lock.locked_by_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Document is locked")
+
+    latest = _latest_revision(db, document_id)
+    revision = WorkspaceRevision(
+        document_id=document.id,
+        version=(latest.version + 1) if latest else 1,
+        content_text=payload.content,
+        created_by_id=current_user.id,
+    )
+    document.updated_at = datetime.utcnow()
+    db.add(revision)
+    db.commit()
+    db.refresh(revision)
+
+    log_event(db, project.id, current_user.id, "workspace_word_updated", {"document_id": document.id})
+    return revision
+
+
 @router.post("/workspace/documents/{document_id}/latex/preview")
 def preview_latex(
     document_id: int,
@@ -382,6 +548,26 @@ def preview_latex(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
     _ensure_project_access(db, project, current_user)
     pdf_bytes = _compile_latex_preview(payload.content)
+    return Response(content=pdf_bytes, media_type="application/pdf")
+
+
+@router.post("/workspace/documents/{document_id}/word/preview")
+def preview_word(
+    document_id: int,
+    payload: WorkspaceWordUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    document = db.get(WorkspaceDocument, document_id)
+    if not document or document.format != WorkspaceFormat.word:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
+    project = db.get(Project, document.project_id)
+    if not project:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    _ensure_project_access(db, project, current_user)
+    latest = _latest_revision(db, document_id)
+    file_path = latest.file_path if latest else None
+    pdf_bytes = _compile_word_preview(payload.content, file_path)
     return Response(content=pdf_bytes, media_type="application/pdf")
 
 
@@ -541,7 +727,7 @@ async def workspace_live(websocket: WebSocket, document_id: int):
     try:
         user = _get_user_from_token(db, token)
         document = db.get(WorkspaceDocument, document_id)
-        if not document or document.format != WorkspaceFormat.latex:
+        if not document or document.format not in {WorkspaceFormat.latex, WorkspaceFormat.word}:
             await websocket.close(code=1008)
             return
         project = db.get(Project, document.project_id)
@@ -564,15 +750,19 @@ async def workspace_live(websocket: WebSocket, document_id: int):
         db = SessionLocal()
         try:
             latest = _latest_revision(db, document_id)
-            LIVE_CONTENT[document_id] = latest.content_text if latest else ""
+            LIVE_CONTENT[document_id] = latest.content_text if latest and latest.content_text else ""
+            LIVE_VERSION[document_id] = latest.version if latest else 1
         finally:
             db.close()
+    if document_id not in LIVE_VERSION:
+        LIVE_VERSION[document_id] = 1
 
     await websocket.send_json(
         {
             "type": "init",
             "document_id": document_id,
             "content": LIVE_CONTENT.get(document_id, ""),
+            "version": LIVE_VERSION.get(document_id, 1),
             "active_users": _presence_list(document_id),
         }
     )
@@ -586,12 +776,36 @@ async def workspace_live(websocket: WebSocket, document_id: int):
         while True:
             payload = await websocket.receive_json()
             message_type = payload.get("type")
-            if message_type == "content":
-                content = payload.get("content", "")
-                LIVE_CONTENT[document_id] = content
+            if message_type == "patch":
+                base_version = payload.get("base_version")
+                patch_text = payload.get("patch")
+                if not isinstance(base_version, int) or not isinstance(patch_text, str):
+                    await websocket.send_json({"type": "sync", "content": LIVE_CONTENT.get(document_id, ""), "version": LIVE_VERSION.get(document_id, 1)})
+                    continue
+                current_version = LIVE_VERSION.get(document_id, 1)
+                if base_version != current_version:
+                    await websocket.send_json({"type": "sync", "content": LIVE_CONTENT.get(document_id, ""), "version": current_version})
+                    continue
+                try:
+                    patches = DMP.patch_fromText(patch_text)
+                    updated_content, results = DMP.patch_apply(patches, LIVE_CONTENT.get(document_id, ""))
+                except Exception:
+                    await websocket.send_json({"type": "sync", "content": LIVE_CONTENT.get(document_id, ""), "version": current_version})
+                    continue
+                if not all(results):
+                    await websocket.send_json({"type": "sync", "content": LIVE_CONTENT.get(document_id, ""), "version": current_version})
+                    continue
+                LIVE_CONTENT[document_id] = updated_content
+                LIVE_VERSION[document_id] = current_version + 1
+                await websocket.send_json({"type": "ack", "version": LIVE_VERSION[document_id]})
                 await _broadcast(
                     document_id,
-                    {"type": "content", "content": content, "user_id": user.id},
+                    {
+                        "type": "patch",
+                        "patch": patch_text,
+                        "version": LIVE_VERSION[document_id],
+                        "user_id": user.id,
+                    },
                     exclude=websocket,
                 )
             elif message_type == "ping":
@@ -605,6 +819,7 @@ async def workspace_live(websocket: WebSocket, document_id: int):
             LIVE_SESSIONS.pop(document_id, None)
             LIVE_PRESENCE.pop(document_id, None)
             LIVE_CONTENT.pop(document_id, None)
+            LIVE_VERSION.pop(document_id, None)
         else:
             await _broadcast(
                 document_id,

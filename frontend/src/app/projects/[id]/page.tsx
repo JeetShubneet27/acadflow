@@ -2,6 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { diff_match_patch } from "diff-match-patch";
 import SectionCard from "@/components/SectionCard";
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
@@ -164,8 +165,10 @@ export default function ProjectDetailPage() {
     null,
   );
   const [workspaceLatexContent, setWorkspaceLatexContent] = useState("");
+  const [workspaceWordContent, setWorkspaceWordContent] = useState("");
   const [newWorkspaceTitle, setNewWorkspaceTitle] = useState("");
   const [newWorkspaceFormat, setNewWorkspaceFormat] = useState("word");
+  const [newWorkspaceWordMode, setNewWorkspaceWordMode] = useState("upload");
   const [newWorkspaceContent, setNewWorkspaceContent] = useState("");
   const [workspacePreviewUrl, setWorkspacePreviewUrl] = useState<string | null>(
     null,
@@ -180,6 +183,10 @@ export default function ProjectDetailPage() {
   const workspaceBroadcastTimer = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  const workspaceVersionRef = useRef(1);
+  const workspaceSyncedContentRef = useRef("");
+  const workspaceLastSentContentRef = useRef("");
+  const dmpRef = useRef(new diff_match_patch());
   const workspacePreviewUrlRef = useRef<string | null>(null);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
   const [selectedDraftId, setSelectedDraftId] = useState<number | null>(null);
@@ -298,27 +305,57 @@ export default function ProjectDetailPage() {
     fetchAnnotations();
   }, [selectedDraftId]);
 
+  const applyWorkspaceContent = (format: string, content: string) => {
+    workspaceRemoteUpdate.current = true;
+    if (format === "latex") {
+      setWorkspaceLatexContent(content);
+    } else if (format === "word") {
+      setWorkspaceWordContent(content);
+    }
+    setTimeout(() => {
+      workspaceRemoteUpdate.current = false;
+    }, 0);
+  };
+
   useEffect(() => {
-    const fetchWorkspaceLatex = async () => {
+    const fetchWorkspaceContent = async () => {
       if (!selectedWorkspaceId) {
         setWorkspaceLatexContent("");
+        setWorkspaceWordContent("");
         return;
       }
       const doc = workspaceDocs.find((item) => item.id === selectedWorkspaceId);
-      if (!doc || doc.format !== "latex") {
+      if (!doc) {
         setWorkspaceLatexContent("");
+        setWorkspaceWordContent("");
         return;
       }
       try {
-        const response = await apiFetch<{ content: string }>(
-          `/workspace/documents/${selectedWorkspaceId}/latex`,
-        );
-        setWorkspaceLatexContent(response.content);
+        if (doc.format === "latex") {
+          const response = await apiFetch<{ content: string }>(
+            `/workspace/documents/${selectedWorkspaceId}/latex`,
+          );
+          setWorkspaceLatexContent(response.content);
+          setWorkspaceWordContent("");
+          workspaceSyncedContentRef.current = response.content;
+          workspaceLastSentContentRef.current = response.content;
+        } else if (doc.format === "word") {
+          const response = await apiFetch<{ content: string }>(
+            `/workspace/documents/${selectedWorkspaceId}/word`,
+          );
+          setWorkspaceWordContent(response.content);
+          setWorkspaceLatexContent("");
+          workspaceSyncedContentRef.current = response.content;
+          workspaceLastSentContentRef.current = response.content;
+        }
       } catch (err) {
         setWorkspaceLatexContent("");
+        setWorkspaceWordContent("");
+        workspaceSyncedContentRef.current = "";
+        workspaceLastSentContentRef.current = "";
       }
     };
-    fetchWorkspaceLatex();
+    fetchWorkspaceContent();
   }, [selectedWorkspaceId, workspaceDocs]);
 
   useEffect(() => {
@@ -328,6 +365,9 @@ export default function ProjectDetailPage() {
     }
     setWorkspacePreviewUrl(null);
     setWorkspacePreviewError(null);
+    workspaceVersionRef.current = 1;
+    workspaceSyncedContentRef.current = "";
+    workspaceLastSentContentRef.current = "";
   }, [selectedWorkspaceId]);
 
   useEffect(() => {
@@ -335,7 +375,7 @@ export default function ProjectDetailPage() {
       return;
     }
     const doc = workspaceDocs.find((item) => item.id === selectedWorkspaceId);
-    if (!doc || doc.format !== "latex") {
+    if (!doc || (doc.format !== "latex" && doc.format !== "word")) {
       return;
     }
     const token = getToken();
@@ -355,18 +395,41 @@ export default function ProjectDetailPage() {
     socket.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data);
-        if (message.type === "init" || message.type === "content") {
-          workspaceRemoteUpdate.current = true;
-          setWorkspaceLatexContent(message.content ?? "");
-          setTimeout(() => {
-            workspaceRemoteUpdate.current = false;
-          }, 0);
-        }
-        if (message.type === "presence") {
+        if (message.type === "init" || message.type === "sync") {
+          const content = typeof message.content === "string" ? message.content : "";
+          if (typeof message.version === "number") {
+            workspaceVersionRef.current = message.version;
+          }
+          workspaceSyncedContentRef.current = content;
+          workspaceLastSentContentRef.current = content;
+          applyWorkspaceContent(doc.format, content);
+          if (message.active_users) {
+            setActiveEditors(message.active_users);
+          }
+        } else if (message.type === "patch") {
+          const patchText = message.patch;
+          if (typeof patchText === "string") {
+            const patches = dmpRef.current.patch_fromText(patchText);
+            const [updatedContent, results] = dmpRef.current.patch_apply(
+              patches,
+              workspaceSyncedContentRef.current,
+            );
+            if (results.every(Boolean)) {
+              workspaceSyncedContentRef.current = updatedContent;
+              workspaceLastSentContentRef.current = updatedContent;
+              if (typeof message.version === "number") {
+                workspaceVersionRef.current = message.version;
+              }
+              applyWorkspaceContent(doc.format, updatedContent);
+            }
+          }
+        } else if (message.type === "ack") {
+          if (typeof message.version === "number") {
+            workspaceVersionRef.current = message.version;
+          }
+          workspaceSyncedContentRef.current = workspaceLastSentContentRef.current;
+        } else if (message.type === "presence") {
           setActiveEditors(message.active_users ?? []);
-        }
-        if (message.type === "init" && message.active_users) {
-          setActiveEditors(message.active_users);
         }
       } catch (err) {
         // ignore malformed websocket messages
@@ -388,9 +451,11 @@ export default function ProjectDetailPage() {
       return;
     }
     const doc = workspaceDocs.find((item) => item.id === selectedWorkspaceId);
-    if (!doc || doc.format !== "latex") {
+    if (!doc || (doc.format !== "latex" && doc.format !== "word")) {
       return;
     }
+    const currentContent =
+      doc.format === "latex" ? workspaceLatexContent : workspaceWordContent;
     if (workspaceBroadcastTimer.current) {
       clearTimeout(workspaceBroadcastTimer.current);
     }
@@ -399,8 +464,22 @@ export default function ProjectDetailPage() {
       if (!socket || socket.readyState !== WebSocket.OPEN) {
         return;
       }
+      const baseContent = workspaceSyncedContentRef.current;
+      if (currentContent === baseContent) {
+        return;
+      }
+      const patches = dmpRef.current.patch_make(baseContent, currentContent);
+      const patchText = dmpRef.current.patch_toText(patches);
+      if (!patchText) {
+        return;
+      }
+      workspaceLastSentContentRef.current = currentContent;
       socket.send(
-        JSON.stringify({ type: "content", content: workspaceLatexContent }),
+        JSON.stringify({
+          type: "patch",
+          base_version: workspaceVersionRef.current,
+          patch: patchText,
+        }),
       );
     }, 300);
     return () => {
@@ -408,7 +487,12 @@ export default function ProjectDetailPage() {
         clearTimeout(workspaceBroadcastTimer.current);
       }
     };
-  }, [workspaceLatexContent, selectedWorkspaceId, workspaceDocs]);
+  }, [
+    workspaceLatexContent,
+    workspaceWordContent,
+    selectedWorkspaceId,
+    workspaceDocs,
+  ]);
 
   const handleInvite = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -534,20 +618,33 @@ export default function ProjectDetailPage() {
     const form = event.currentTarget;
     try {
       if (newWorkspaceFormat === "word") {
-        const fileInput = form.elements.namedItem(
-          "workspace-file",
-        ) as HTMLInputElement;
-        if (!fileInput.files || fileInput.files.length === 0) {
-          setError("Please attach a DOC/DOCX file.");
-          return;
+        if (newWorkspaceWordMode === "upload") {
+          const fileInput = form.elements.namedItem(
+            "workspace-file",
+          ) as HTMLInputElement;
+          if (!fileInput.files || fileInput.files.length === 0) {
+            setError("Please attach a DOC/DOCX file.");
+            return;
+          }
+          const formData = new FormData();
+          formData.append("title", newWorkspaceTitle);
+          formData.append("file", fileInput.files[0]);
+          await apiFetch(`/projects/${projectId}/workspace/documents/word`, {
+            method: "POST",
+            body: formData,
+          });
+        } else {
+          await apiFetch(
+            `/projects/${projectId}/workspace/documents/word/editor`,
+            {
+              method: "POST",
+              body: JSON.stringify({
+                title: newWorkspaceTitle,
+                content: newWorkspaceContent,
+              }),
+            },
+          );
         }
-        const formData = new FormData();
-        formData.append("title", newWorkspaceTitle);
-        formData.append("file", fileInput.files[0]);
-        await apiFetch(`/projects/${projectId}/workspace/documents/word`, {
-          method: "POST",
-          body: formData,
-        });
       } else {
         await apiFetch(`/projects/${projectId}/workspace/documents/latex`, {
           method: "POST",
@@ -560,6 +657,7 @@ export default function ProjectDetailPage() {
       form.reset();
       setNewWorkspaceTitle("");
       setNewWorkspaceFormat("word");
+      setNewWorkspaceWordMode("upload");
       setNewWorkspaceContent("");
       await load();
     } catch (err) {
@@ -573,23 +671,31 @@ export default function ProjectDetailPage() {
     setSelectedWorkspaceId(documentId);
   };
 
-  const handleWorkspaceLatexSave = async () => {
-    if (!selectedWorkspaceId) {
+  const handleWorkspaceSave = async () => {
+    if (!selectedWorkspaceId || !selectedWorkspaceDoc) {
       return;
     }
+    const content =
+      selectedWorkspaceDoc.format === "latex"
+        ? workspaceLatexContent
+        : workspaceWordContent;
+    const endpoint =
+      selectedWorkspaceDoc.format === "latex"
+        ? `/workspace/documents/${selectedWorkspaceId}/latex`
+        : `/workspace/documents/${selectedWorkspaceId}/word`;
     try {
-      await apiFetch(`/workspace/documents/${selectedWorkspaceId}/latex`, {
+      await apiFetch(endpoint, {
         method: "PUT",
-        body: JSON.stringify({ content: workspaceLatexContent }),
+        body: JSON.stringify({ content }),
       });
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to save LaTeX draft");
+      setError(err instanceof Error ? err.message : "Unable to save workspace");
     }
   };
 
   const handleWorkspacePreview = async () => {
-    if (!selectedWorkspaceId) {
+    if (!selectedWorkspaceId || !selectedWorkspaceDoc) {
       return;
     }
     const token = getToken();
@@ -597,20 +703,26 @@ export default function ProjectDetailPage() {
       setWorkspacePreviewError("You must be logged in to preview.");
       return;
     }
+    const content =
+      selectedWorkspaceDoc.format === "latex"
+        ? workspaceLatexContent
+        : workspaceWordContent;
+    const previewPath =
+      selectedWorkspaceDoc.format === "latex" ? "latex" : "word";
     const baseUrl =
       process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
     setWorkspacePreviewLoading(true);
     setWorkspacePreviewError(null);
     try {
       const response = await fetch(
-        `${baseUrl}/workspace/documents/${selectedWorkspaceId}/latex/preview`,
+        `${baseUrl}/workspace/documents/${selectedWorkspaceId}/${previewPath}/preview`,
         {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ content: workspaceLatexContent }),
+          body: JSON.stringify({ content }),
         },
       );
       if (!response.ok) {
@@ -900,6 +1012,8 @@ export default function ProjectDetailPage() {
   const selectedWorkspaceLockedByOther =
     selectedWorkspaceIsLocked &&
     selectedWorkspaceLock?.locked_by_id !== user?.id;
+  const selectedWorkspaceIsLatex = selectedWorkspaceDoc?.format === "latex";
+  const selectedWorkspaceIsWord = selectedWorkspaceDoc?.format === "word";
 
   if (!user) {
     return (
@@ -1144,6 +1258,9 @@ export default function ProjectDetailPage() {
               setNewWorkspaceFormat(value);
               if (value === "word") {
                 setNewWorkspaceContent("");
+                setNewWorkspaceWordMode("upload");
+              } else {
+                setNewWorkspaceContent("");
               }
             }}
             className="select"
@@ -1151,14 +1268,34 @@ export default function ProjectDetailPage() {
             <option value="word">Word (DOC/DOCX)</option>
             <option value="latex">LaTeX</option>
           </select>
-          {newWorkspaceFormat === "word" ? (
+          {newWorkspaceFormat === "word" && (
+            <select
+              value={newWorkspaceWordMode}
+              onChange={(event) => setNewWorkspaceWordMode(event.target.value)}
+              className="select"
+            >
+              <option value="upload">Upload DOCX</option>
+              <option value="editor">Start in editor</option>
+            </select>
+          )}
+          {newWorkspaceFormat === "word" && newWorkspaceWordMode === "upload" && (
             <input
               type="file"
               name="workspace-file"
               className="text-sm md:col-span-2"
               required
             />
-          ) : (
+          )}
+          {newWorkspaceFormat === "word" && newWorkspaceWordMode === "editor" && (
+            <textarea
+              value={newWorkspaceContent}
+              onChange={(event) => setNewWorkspaceContent(event.target.value)}
+              placeholder="Start your Word manuscript..."
+              className="textarea md:col-span-2"
+              rows={4}
+            />
+          )}
+          {newWorkspaceFormat === "latex" && (
             <textarea
               value={newWorkspaceContent}
               onChange={(event) => setNewWorkspaceContent(event.target.value)}
@@ -1199,13 +1336,13 @@ export default function ProjectDetailPage() {
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {doc.format === "latex" && (
+                    {(doc.format === "latex" || doc.format === "word") && (
                       <button
                         type="button"
                         onClick={() => handleWorkspaceSelect(doc.id)}
                         className="btn btn-secondary btn-xs"
                       >
-                        Open
+                        Open editor
                       </button>
                     )}
                     {isLocked ? (
@@ -1253,11 +1390,12 @@ export default function ProjectDetailPage() {
           )}
         </div>
 
-        {selectedWorkspaceDoc?.format === "latex" && (
+        {(selectedWorkspaceIsLatex || selectedWorkspaceIsWord) && (
           <div className="mt-6 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="text-sm font-semibold text-[var(--color-text)]">
-                Editing {selectedWorkspaceDoc.title}
+                Editing {selectedWorkspaceDoc?.title} •{" "}
+                {selectedWorkspaceIsLatex ? "LaTeX" : "Word"}
               </div>
               <div className="text-xs text-[var(--color-muted)]">
                 {selectedWorkspaceIsLocked
@@ -1273,15 +1411,26 @@ export default function ProjectDetailPage() {
                 : "Active editors: just you"}
             </div>
             <textarea
-              value={workspaceLatexContent}
-              onChange={(event) => setWorkspaceLatexContent(event.target.value)}
+              value={
+                selectedWorkspaceIsLatex ? workspaceLatexContent : workspaceWordContent
+              }
+              onChange={(event) =>
+                selectedWorkspaceIsLatex
+                  ? setWorkspaceLatexContent(event.target.value)
+                  : setWorkspaceWordContent(event.target.value)
+              }
               className="textarea mt-3 w-full"
-              rows={8}
+              rows={10}
+              placeholder={
+                selectedWorkspaceIsLatex
+                  ? "Edit your LaTeX manuscript..."
+                  : "Write or paste your Word manuscript..."
+              }
             />
             <div className="mt-3 flex flex-wrap gap-3">
               <button
                 type="button"
-                onClick={handleWorkspaceLatexSave}
+                onClick={handleWorkspaceSave}
                 disabled={selectedWorkspaceLockedByOther}
                 className="btn btn-primary btn-xs disabled:opacity-60"
               >
@@ -1293,7 +1442,9 @@ export default function ProjectDetailPage() {
                 disabled={workspacePreviewLoading}
                 className="btn btn-secondary btn-xs disabled:opacity-60"
               >
-                {workspacePreviewLoading ? "Generating preview..." : "Generate PDF preview"}
+                {workspacePreviewLoading
+                  ? "Generating preview..."
+                  : "Generate PDF preview"}
               </button>
               {selectedWorkspaceLockedByOther && (
                 <span className="text-xs text-[var(--color-muted)]">
@@ -1307,7 +1458,7 @@ export default function ProjectDetailPage() {
             {workspacePreviewUrl && (
               <div className="mt-4">
                 <iframe
-                  title="LaTeX preview"
+                  title={`${selectedWorkspaceIsLatex ? "LaTeX" : "Word"} preview`}
                   src={workspacePreviewUrl}
                   className="h-[480px] w-full rounded-lg border border-[var(--color-border)]"
                 />

@@ -11,6 +11,11 @@ class WorkspaceDocumentCreate(BaseModel):
     content: Optional[str] = None
 
 
+class WorkspaceWordCreate(BaseModel):
+    title: str
+    content: str
+
+
 class WorkspaceDocumentOut(BaseModel):
     id: int
     project_id: int
@@ -40,6 +45,10 @@ class WorkspaceRevisionOut(BaseModel):
 
 
 class WorkspaceLatexUpdate(BaseModel):
+    content: str
+
+
+class WorkspaceWordUpdate(BaseModel):
     content: str
 
 

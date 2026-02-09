@@ -11,3 +11,5 @@ razorpay
 alembic
 argon2-cffi
 psycopg2-binary
+diff-match-patch
+weasyprint

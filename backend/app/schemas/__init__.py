@@ -31,6 +31,8 @@ from app.schemas.workspace import (
     WorkspaceLatexUpdate,
     WorkspaceLockOut,
     WorkspaceRevisionOut,
+    WorkspaceWordCreate,
+    WorkspaceWordUpdate,
 )
 
 __all__ = [
@@ -75,4 +77,6 @@ __all__ = [
     "WorkspaceLatexUpdate",
     "WorkspaceLockOut",
     "WorkspaceRevisionOut",
+    "WorkspaceWordCreate",
+    "WorkspaceWordUpdate",
 ]

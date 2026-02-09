@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     public_plagiarism_enabled: bool = False
     latex_preview_provider: str = "none"
     latex_preview_timeout_seconds: int = 30
+    word_preview_provider: str = "none"
+    word_preview_timeout_seconds: int = 30
 
     class Config:
         env_file = ".env"
