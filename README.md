@@ -79,7 +79,7 @@ backend environment.
 
 ### Email verification (OTP)
 
-AcadFlow requires OTP verification during signup only. Configure SMTP:
+AcadFlow requires OTP verification during signup only. Configure SMTP or Resend:
 
 ```
 SMTP_HOST=
@@ -88,6 +88,16 @@ SMTP_USERNAME=
 SMTP_PASSWORD=
 SMTP_FROM=no-reply@acadflow.com
 SMTP_USE_TLS=true
+EMAIL_PROVIDER=smtp
+RESEND_API_KEY=
+```
+
+Resend setup:
+
+```
+EMAIL_PROVIDER=resend
+RESEND_API_KEY=your_resend_key
+SMTP_FROM=verified@your-domain.com
 ```
 
 ### Faculty verification

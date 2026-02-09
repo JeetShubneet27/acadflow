@@ -36,6 +36,8 @@ class Settings(BaseSettings):
     smtp_use_tls: bool = True
     smtp_suppress_send: bool = False
     smtp_timeout_seconds: int = 15
+    email_provider: str = "smtp"
+    resend_api_key: str = ""
     public_plagiarism_enabled: bool = False
     latex_preview_provider: str = "none"
     latex_preview_timeout_seconds: int = 30
