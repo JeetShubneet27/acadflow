@@ -79,8 +79,8 @@ export default function DraftsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Drafts</h1>
-        <p className="text-sm text-slate-600">
+        <h1 className="text-2xl font-semibold text-[var(--color-text)]">Drafts</h1>
+        <p className="text-sm text-[var(--color-muted)]">
           Review uploaded versions across your projects.
         </p>
       </div>
@@ -92,12 +92,12 @@ export default function DraftsPage() {
             value={projectId}
             onChange={(event) => setProjectId(event.target.value)}
             placeholder="Project ID"
-            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+            className="input w-auto"
           />
           <button
             type="button"
             onClick={handleLoad}
-            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+            className="btn btn-primary"
           >
             Load drafts
           </button>
@@ -112,24 +112,24 @@ export default function DraftsPage() {
 
       <SectionCard title="Draft versions">
         {isLoading ? (
-          <div className="text-sm text-slate-500">Loading drafts...</div>
+          <div className="text-sm text-[var(--color-muted)]">Loading drafts...</div>
         ) : drafts.length === 0 ? (
-          <div className="text-sm text-slate-500">
+          <div className="text-sm text-[var(--color-muted)]">
             No drafts available for this project.
           </div>
         ) : (
-          <ul className="space-y-2 text-sm text-slate-600">
+          <ul className="space-y-2 text-sm text-[var(--color-muted)]">
             {drafts.map((draft) => {
               const lock = draftLocks[draft.id];
               const isLocked = lock?.status === "active";
               return (
                 <li
                   key={draft.id}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2"
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] px-3 py-2"
                 >
                   <div>
                     v{draft.version} • {draft.original_filename}
-                    <div className="text-xs text-slate-400">
+                    <div className="text-xs text-[var(--color-muted)]">
                       {isLocked
                         ? `Locked by user #${lock?.locked_by_id}`
                         : "No active lock"}
@@ -139,7 +139,7 @@ export default function DraftsPage() {
                     <button
                       type="button"
                       onClick={() => handleUnlock(draft.id)}
-                      className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700"
+                      className="btn btn-secondary btn-xs"
                     >
                       Release lock
                     </button>
@@ -147,7 +147,7 @@ export default function DraftsPage() {
                     <button
                       type="button"
                       onClick={() => handleLock(draft.id)}
-                      className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white"
+                      className="btn btn-primary btn-xs"
                     >
                       Lock draft
                     </button>

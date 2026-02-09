@@ -33,28 +33,28 @@ export default function LoginPage() {
 
   return (
     <div className="mx-auto max-w-md">
-      <h1 className="text-2xl font-semibold text-slate-900">Log in</h1>
-      <p className="mt-2 text-sm text-slate-600">
+      <h1 className="text-2xl font-semibold text-[var(--color-text)]">Log in</h1>
+      <p className="mt-2 text-sm text-[var(--color-muted)]">
         Access your AcadFlow workspace with your university credentials.
       </p>
       <form onSubmit={handleSubmit} className="mt-6 space-y-4">
         <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-700">Email</label>
+          <label className="text-sm font-medium text-[var(--color-text)]">Email</label>
           <input
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm"
+            className="input"
             required
           />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-700">Password</label>
+          <label className="text-sm font-medium text-[var(--color-text)]">Password</label>
           <input
             type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm"
+            className="input"
             required
           />
         </div>
@@ -66,7 +66,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          className="btn btn-primary w-full disabled:opacity-60"
         >
           {isSubmitting ? "Signing in..." : "Log in"}
         </button>

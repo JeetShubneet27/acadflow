@@ -552,19 +552,19 @@ export default function ProjectDetailPage() {
 
   if (!user) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
+      <div className="card text-sm text-[var(--color-muted)]">
         Log in to view project details.
       </div>
     );
   }
 
   if (isLoading) {
-    return <div className="text-sm text-slate-500">Loading project...</div>;
+    return <div className="text-sm text-[var(--color-muted)]">Loading project...</div>;
   }
 
   if (!project) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
+      <div className="card text-sm text-[var(--color-muted)]">
         Project not found.
       </div>
     );
@@ -573,10 +573,10 @@ export default function ProjectDetailPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">
+        <h1 className="text-2xl font-semibold text-[var(--color-text)]">
           {project.title}
         </h1>
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-2 text-sm text-[var(--color-muted)]">
           {project.abstract || "No abstract provided yet."}
         </p>
       </div>
@@ -589,11 +589,11 @@ export default function ProjectDetailPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <SectionCard title="Team members" description="Current collaborators.">
-          <div className="space-y-3 text-sm text-slate-600">
+          <div className="space-y-3 text-sm text-[var(--color-muted)]">
             {members.map((member) => (
               <div
                 key={member.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] px-3 py-2"
               >
                 <div>
                   User #{member.user_id} • {member.role} • {member.status}
@@ -606,7 +606,7 @@ export default function ProjectDetailPage() {
                         handleMemberRoleChange(member.id, event.target.value)
                       }
                       disabled={member.user_id === project.owner_id}
-                      className="rounded-lg border border-slate-300 px-2 py-1 text-xs"
+                      className="select w-auto px-2 py-1 text-xs"
                     >
                       <option value="owner">Owner</option>
                       <option value="coauthor">Co-author</option>
@@ -617,7 +617,7 @@ export default function ProjectDetailPage() {
                         handleMemberStatusChange(member.id, event.target.value)
                       }
                       disabled={member.user_id === project.owner_id}
-                      className="rounded-lg border border-slate-300 px-2 py-1 text-xs"
+                      className="select w-auto px-2 py-1 text-xs"
                     >
                       <option value="active">Active</option>
                       <option value="suspended">Suspended</option>
@@ -626,7 +626,7 @@ export default function ProjectDetailPage() {
                       type="button"
                       onClick={() => handleMemberRemove(member.id)}
                       disabled={member.user_id === project.owner_id}
-                      className="rounded-lg border border-slate-300 px-2 py-1 text-xs text-slate-600 disabled:opacity-50"
+                      className="btn btn-secondary btn-xs disabled:opacity-50"
                     >
                       Remove
                     </button>
@@ -645,20 +645,20 @@ export default function ProjectDetailPage() {
                   value={inviteEmail}
                   onChange={(event) => setInviteEmail(event.target.value)}
                   placeholder="Invitee email"
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                  className="input"
                   required
                 />
                 <select
                   value={inviteRole}
                   onChange={(event) => setInviteRole(event.target.value)}
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                  className="select"
                 >
                   <option value="coauthor">Co-author</option>
                   <option value="owner">Owner</option>
                 </select>
                 <button
                   type="submit"
-                  className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+                  className="btn btn-primary"
                 >
                   Send invite
                 </button>
@@ -666,18 +666,18 @@ export default function ProjectDetailPage() {
             </SectionCard>
             {invites.length > 0 && (
               <SectionCard title="Invitations">
-                <div className="space-y-3 text-sm text-slate-600">
+                <div className="space-y-3 text-sm text-[var(--color-muted)]">
                   {invites.map((invite) => (
                     <div
                       key={invite.id}
-                      className="rounded-xl border border-slate-200 px-3 py-2"
+                      className="rounded-xl border border-[var(--color-border)] px-3 py-2"
                     >
                       <div>
                         Invitee #{invite.invitee_id} • {invite.membership_role} •{" "}
                         {invite.status}
                       </div>
                       {invite.expires_at && (
-                        <div className="text-xs text-slate-400">
+                        <div className="text-xs text-[var(--color-muted)]">
                           Expires {new Date(invite.expires_at).toLocaleString()}
                         </div>
                       )}
@@ -686,7 +686,7 @@ export default function ProjectDetailPage() {
                           <button
                             type="button"
                             onClick={() => handleInviteRevoke(invite.id)}
-                            className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700"
+                            className="btn btn-secondary btn-xs"
                           >
                             Revoke
                           </button>
@@ -697,7 +697,7 @@ export default function ProjectDetailPage() {
                           <button
                             type="button"
                             onClick={() => handleInviteResend(invite.id)}
-                            className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white"
+                            className="btn btn-primary btn-xs"
                           >
                             Resend
                           </button>
@@ -718,25 +718,25 @@ export default function ProjectDetailPage() {
             <input type="file" name="draft" className="text-sm" required />
             <button
               type="submit"
-              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+              className="btn btn-primary"
             >
               Upload draft
             </button>
           </form>
         )}
-        <ul className="mt-4 space-y-2 text-sm text-slate-600">
+        <ul className="mt-4 space-y-2 text-sm text-[var(--color-muted)]">
           {drafts.map((draft) => {
             const lock = draftLocks[draft.id];
             const isLocked = lock?.status === "active";
             return (
               <li
                 key={draft.id}
-                className="rounded-xl border border-slate-200 px-3 py-2"
+                className="rounded-xl border border-[var(--color-border)] px-3 py-2"
               >
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     v{draft.version} • {draft.original_filename}
-                    <div className="text-xs text-slate-400">
+                    <div className="text-xs text-[var(--color-muted)]">
                       {isLocked
                         ? `Locked by user #${lock?.locked_by_id}`
                         : "No active lock"}
@@ -748,7 +748,7 @@ export default function ProjectDetailPage() {
                         <button
                           type="button"
                           onClick={() => handleUnlockDraft(draft.id)}
-                          className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700"
+                          className="btn btn-secondary btn-xs"
                         >
                           Release lock
                         </button>
@@ -756,7 +756,7 @@ export default function ProjectDetailPage() {
                         <button
                           type="button"
                           onClick={() => handleLockDraft(draft.id)}
-                          className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white"
+                          className="btn btn-primary btn-xs"
                         >
                           Lock draft
                         </button>
@@ -768,7 +768,7 @@ export default function ProjectDetailPage() {
             );
           })}
           {drafts.length === 0 && (
-            <li className="text-slate-400">No drafts uploaded yet.</li>
+            <li className="text-[var(--color-muted)]">No drafts uploaded yet.</li>
           )}
         </ul>
       </SectionCard>
@@ -776,7 +776,7 @@ export default function ProjectDetailPage() {
       {permissions?.can_comment && (
         <SectionCard title="Annotations">
           {drafts.length === 0 ? (
-          <div className="text-sm text-slate-500">
+          <div className="text-sm text-[var(--color-muted)]">
             Upload a draft to start annotations.
           </div>
           ) : (
@@ -787,7 +787,7 @@ export default function ProjectDetailPage() {
                 onChange={(event) =>
                   setSelectedDraftId(Number(event.target.value))
                 }
-                className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                className="select"
               >
                 {drafts.map((draft) => (
                   <option key={draft.id} value={draft.id}>
@@ -800,7 +800,7 @@ export default function ProjectDetailPage() {
               <select
                 value={annotationAnchorType}
                 onChange={(event) => setAnnotationAnchorType(event.target.value)}
-                className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                className="select"
               >
                 <option value="page">Page</option>
                 <option value="text">Text</option>
@@ -812,23 +812,23 @@ export default function ProjectDetailPage() {
                 placeholder={
                   annotationAnchorType === "page" ? "Page number" : "Text snippet"
                 }
-                className="rounded-xl border border-slate-300 px-3 py-2 text-sm md:col-span-1"
+                className="input md:col-span-1"
               />
               <input
                 type="text"
                 value={annotationBody}
                 onChange={(event) => setAnnotationBody(event.target.value)}
                 placeholder="Add an annotation"
-                className="rounded-xl border border-slate-300 px-3 py-2 text-sm md:col-span-2"
+                className="input md:col-span-2"
               />
               <button
                 type="submit"
-                className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+                className="btn btn-primary"
               >
                 Add
               </button>
             </form>
-            <div className="space-y-3 text-sm text-slate-600">
+            <div className="space-y-3 text-sm text-[var(--color-muted)]">
               {annotations
                 .filter((annotation) => !annotation.parent_id)
                 .map((annotation) => {
@@ -838,7 +838,7 @@ export default function ProjectDetailPage() {
                   return (
                     <div
                       key={annotation.id}
-                      className="rounded-xl border border-slate-200 px-3 py-2"
+                      className="rounded-xl border border-[var(--color-border)] px-3 py-2"
                     >
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
@@ -847,7 +847,7 @@ export default function ProjectDetailPage() {
                             ? JSON.stringify(annotation.anchor_data)
                             : "General"}
                         </div>
-                        <div className="text-xs text-slate-400">
+                        <div className="text-xs text-[var(--color-muted)]">
                           {annotation.status}
                         </div>
                       </div>
@@ -857,7 +857,7 @@ export default function ProjectDetailPage() {
                           <button
                             type="button"
                             onClick={() => handleAnnotationResolve(annotation.id)}
-                            className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700"
+                            className="btn btn-secondary btn-xs"
                           >
                             Resolve
                           </button>
@@ -865,7 +865,7 @@ export default function ProjectDetailPage() {
                           <button
                             type="button"
                             onClick={() => handleAnnotationReopen(annotation.id)}
-                            className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700"
+                            className="btn btn-secondary btn-xs"
                           >
                             Reopen
                           </button>
@@ -875,7 +875,7 @@ export default function ProjectDetailPage() {
                         {replies.map((reply) => (
                           <div
                             key={reply.id}
-                            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs"
+                            className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3 py-2 text-xs"
                           >
                             Reply by user #{reply.author_id}: {reply.body}
                           </div>
@@ -891,7 +891,7 @@ export default function ProjectDetailPage() {
                               }))
                             }
                             placeholder="Reply"
-                            className="flex-1 rounded-lg border border-slate-300 px-3 py-1 text-xs"
+                            className="input flex-1 px-3 py-1 text-xs"
                           />
                           <button
                             type="button"
@@ -905,7 +905,7 @@ export default function ProjectDetailPage() {
                                 [annotation.id]: "",
                               }));
                             }}
-                            className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white"
+                            className="btn btn-primary btn-xs"
                           >
                             Send
                           </button>
@@ -915,7 +915,7 @@ export default function ProjectDetailPage() {
                   );
                 })}
               {annotations.length === 0 && (
-                <div className="text-slate-400">No annotations yet.</div>
+                <div className="text-[var(--color-muted)]">No annotations yet.</div>
               )}
             </div>
           </div>
@@ -928,18 +928,18 @@ export default function ProjectDetailPage() {
           <input type="file" name="plagiarism" className="text-sm" required />
           <button
             type="submit"
-            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+            className="btn btn-primary"
           >
             Request check
           </button>
         </form>
-        <ul className="mt-4 space-y-2 text-sm text-slate-600">
+        <ul className="mt-4 space-y-2 text-sm text-[var(--color-muted)]">
           {jobs.map((job) => (
             <li key={job.id}>
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2">
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] px-3 py-2">
                 <div>
                   Job #{job.id} • {job.status} • {job.original_filename}
-                  <div className="text-xs text-slate-400">
+                  <div className="text-xs text-[var(--color-muted)]">
                     Payment: {job.payment_status} •{" "}
                     {formatCurrency(job.amount_cents, job.currency)}
                   </div>
@@ -948,7 +948,7 @@ export default function ProjectDetailPage() {
                   <button
                     type="button"
                     onClick={() => downloadReport(job.id, job.report_filename)}
-                    className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700"
+                    className="btn btn-secondary btn-xs"
                   >
                     Download report
                   </button>
@@ -957,18 +957,18 @@ export default function ProjectDetailPage() {
                     type="button"
                     onClick={() => handleProjectPayment(job.id)}
                     disabled={payingJobId === job.id}
-                    className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white disabled:opacity-60"
+                    className="btn btn-primary btn-xs disabled:opacity-60"
                   >
                     {payingJobId === job.id ? "Opening..." : "Pay now"}
                   </button>
                 ) : (
-                  <span className="text-xs text-slate-400">Report pending</span>
+                  <span className="text-xs text-[var(--color-muted)]">Report pending</span>
                 )}
               </div>
             </li>
           ))}
           {jobs.length === 0 && (
-            <li className="text-slate-400">No jobs requested yet.</li>
+            <li className="text-[var(--color-muted)]">No jobs requested yet.</li>
           )}
         </ul>
       </SectionCard>
@@ -981,18 +981,18 @@ export default function ProjectDetailPage() {
               value={reviewerId}
               onChange={(event) => setReviewerId(event.target.value)}
               placeholder="Reviewer user id"
-              className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+              className="input w-auto"
               required
             />
             <button
               type="submit"
-              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+              className="btn btn-primary"
             >
               Assign reviewer
             </button>
           </form>
         )}
-        <ul className="mt-4 space-y-2 text-sm text-slate-600">
+        <ul className="mt-4 space-y-2 text-sm text-[var(--color-muted)]">
           {reviews.map((review) => (
             <li key={review.id}>
               Reviewer #{review.reviewer_id} • {review.status}{" "}
@@ -1000,47 +1000,47 @@ export default function ProjectDetailPage() {
             </li>
           ))}
           {reviews.length === 0 && (
-            <li className="text-slate-400">No reviews yet.</li>
+            <li className="text-[var(--color-muted)]">No reviews yet.</li>
           )}
         </ul>
       </SectionCard>
 
       <SectionCard title="Activity feed">
-        <div className="space-y-2 text-sm text-slate-600">
+        <div className="space-y-2 text-sm text-[var(--color-muted)]">
           {activity.map((event) => (
-            <div key={event.id} className="rounded-xl border border-slate-200 px-3 py-2">
-              <div className="font-medium text-slate-900">{event.summary}</div>
-              <div className="text-xs text-slate-400">
+            <div key={event.id} className="rounded-xl border border-[var(--color-border)] px-3 py-2">
+              <div className="font-medium text-[var(--color-text)]">{event.summary}</div>
+              <div className="text-xs text-[var(--color-muted)]">
                 User #{event.actor_id ?? "System"} •{" "}
                 {new Date(event.created_at).toLocaleString()}
               </div>
             </div>
           ))}
           {activity.length === 0 && (
-            <div className="text-slate-400">No activity yet.</div>
+            <div className="text-[var(--color-muted)]">No activity yet.</div>
           )}
         </div>
       </SectionCard>
 
       {(permissions?.can_manage_members || user.role === "faculty") && (
         <SectionCard title="Audit log">
-          <div className="space-y-2 text-sm text-slate-600">
+          <div className="space-y-2 text-sm text-[var(--color-muted)]">
             {auditEvents.map((event) => (
               <div
                 key={event.id}
-                className="rounded-xl border border-slate-200 px-3 py-2"
+                className="rounded-xl border border-[var(--color-border)] px-3 py-2"
               >
-                <div className="font-medium text-slate-900">
+                <div className="font-medium text-[var(--color-text)]">
                   {event.event_type.replace(/_/g, " ")}
                 </div>
-                <div className="text-xs text-slate-400">
+                <div className="text-xs text-[var(--color-muted)]">
                   User #{event.actor_id ?? "System"} •{" "}
                   {new Date(event.created_at).toLocaleString()}
                 </div>
               </div>
             ))}
             {auditEvents.length === 0 && (
-              <div className="text-slate-400">No audit events yet.</div>
+              <div className="text-[var(--color-muted)]">No audit events yet.</div>
             )}
           </div>
         </SectionCard>

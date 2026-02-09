@@ -36,38 +36,38 @@ export default function NewProjectPage() {
   return (
     <div className="mx-auto max-w-xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">New project</h1>
-        <p className="text-sm text-slate-600">
+        <h1 className="text-2xl font-semibold text-[var(--color-text)]">New project</h1>
+        <p className="text-sm text-[var(--color-muted)]">
           Create a research workspace and invite collaborators.
         </p>
       </div>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-700">Title</label>
+          <label className="text-sm font-medium text-[var(--color-text)]">Title</label>
           <input
             type="text"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
-            className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm"
+            className="input"
             required
           />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-700">Abstract</label>
+          <label className="text-sm font-medium text-[var(--color-text)]">Abstract</label>
           <textarea
             value={abstract}
             onChange={(event) => setAbstract(event.target.value)}
-            className="min-h-[120px] w-full rounded-xl border border-slate-300 px-4 py-2 text-sm"
+            className="textarea min-h-[120px]"
           />
         </div>
         <div className="space-y-2">
-          <label className="text-sm font-medium text-slate-700">
+          <label className="text-sm font-medium text-[var(--color-text)]">
             Visibility
           </label>
           <select
             value={visibility}
             onChange={(event) => setVisibility(event.target.value)}
-            className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm"
+            className="select"
           >
             <option value="private">Private</option>
             <option value="public">Public</option>
@@ -81,7 +81,7 @@ export default function NewProjectPage() {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          className="btn btn-primary disabled:opacity-60"
         >
           {isSubmitting ? "Creating..." : "Create project"}
         </button>

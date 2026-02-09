@@ -3,13 +3,13 @@ export default function Home() {
     <div className="grid gap-10 lg:grid-cols-[1.3fr_0.7fr]">
       <div className="space-y-8">
         <div className="space-y-4">
-          <p className="text-sm font-semibold uppercase tracking-[0.25em] text-slate-500">
+          <p className="text-sm font-semibold uppercase tracking-[0.25em] text-[var(--color-muted)]">
             Production-grade research workflows
           </p>
-          <h1 className="text-4xl font-semibold leading-tight text-slate-900 md:text-5xl">
+          <h1 className="text-4xl font-semibold leading-tight text-[var(--color-text)] md:text-5xl">
             AcadFlow keeps research teams and faculty reviewers aligned.
           </h1>
-          <p className="text-lg text-slate-600">
+          <p className="text-lg text-[var(--color-muted)]">
             Manage projects, collaborate on drafts, request human-reviewed plagiarism
             checks, and coordinate reviewer feedback in one secure platform.
           </p>
@@ -17,13 +17,13 @@ export default function Home() {
         <div className="flex flex-wrap gap-3">
           <a
             href="/register"
-            className="rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white"
+            className="btn btn-primary"
           >
             Start a research workspace
           </a>
           <a
             href="/login"
-            className="rounded-full border border-slate-300 px-6 py-3 text-sm font-semibold text-slate-700"
+            className="btn btn-secondary"
           >
             Log in
           </a>
@@ -37,7 +37,7 @@ export default function Home() {
           ].map((item) => (
             <div
               key={item}
-              className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-600 shadow-sm"
+              className="rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-sm text-[var(--color-muted)] shadow-sm"
             >
               {item}
             </div>
@@ -45,29 +45,29 @@ export default function Home() {
         </div>
       </div>
       <div className="space-y-6">
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">
+        <div className="card">
+          <h2 className="text-lg font-semibold text-[var(--color-text)]">
             Built for academic governance
           </h2>
-          <ul className="mt-4 space-y-3 text-sm text-slate-600">
+          <ul className="mt-4 space-y-3 text-sm text-[var(--color-muted)]">
             <li>• Project membership and co-author invitations.</li>
             <li>• Reviewer assignment with visibility controls.</li>
             <li>• Faculty oversight of plagiarism reports.</li>
             <li>• Audit-friendly version histories.</li>
           </ul>
         </div>
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-slate-900">Transparent pricing</h3>
-          <p className="mt-2 text-sm text-slate-600">
+        <div className="card">
+          <h3 className="text-lg font-semibold text-[var(--color-text)]">Transparent pricing</h3>
+          <p className="mt-2 text-sm text-[var(--color-muted)]">
             Human-reviewed plagiarism checks start at INR 25 per submission.
           </p>
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="mt-2 text-xs text-[var(--color-muted)]">
             Faculty can waive or adjust payment status per job.
           </p>
         </div>
-        <div className="rounded-3xl border border-slate-200 bg-gradient-to-br from-slate-900 to-slate-700 p-6 text-sm text-white shadow-sm">
+        <div className="rounded-3xl border border-[var(--color-border)] bg-[var(--color-accent)] p-6 text-sm text-[var(--color-on-primary)] shadow-sm">
           <h3 className="text-lg font-semibold">Ready to pilot AcadFlow?</h3>
-          <p className="mt-2 text-slate-100">
+          <p className="mt-2 text-[var(--color-on-primary)] opacity-90">
             Launch a workspace for your department or lab in minutes with secure
             role-based onboarding.
           </p>

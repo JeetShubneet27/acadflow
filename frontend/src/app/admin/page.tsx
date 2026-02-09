@@ -125,7 +125,7 @@ export default function AdminPage() {
 
   if (!user) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
+      <div className="card text-sm text-[var(--color-muted)]">
         Log in to access faculty tools.
       </div>
     );
@@ -137,7 +137,7 @@ export default function AdminPage() {
         title="Faculty dashboard"
         description="Only faculty administrators can access these tools."
       >
-        <div className="text-sm text-slate-600">
+        <div className="text-sm text-[var(--color-muted)]">
           You do not have faculty permissions.
         </div>
       </SectionCard>
@@ -147,10 +147,10 @@ export default function AdminPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">
+        <h1 className="text-2xl font-semibold text-[var(--color-text)]">
           Admin dashboard
         </h1>
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-[var(--color-muted)]">
           Manage roles, reviewer assignments, payments, and plagiarism workflows.
         </p>
       </div>
@@ -169,20 +169,20 @@ export default function AdminPage() {
               value={roleUserId}
               onChange={(event) => setRoleUserId(event.target.value)}
               placeholder="User ID"
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+              className="input"
               required
             />
             <select
               value={role}
               onChange={(event) => setRole(event.target.value)}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+              className="select"
             >
               <option value="student">Student</option>
               <option value="faculty">Faculty</option>
             </select>
             <button
               type="submit"
-              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+              className="btn btn-primary"
             >
               Update role
             </button>
@@ -195,7 +195,7 @@ export default function AdminPage() {
               value={assignProjectId}
               onChange={(event) => setAssignProjectId(event.target.value)}
               placeholder="Project ID"
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+              className="input"
               required
             />
             <input
@@ -203,12 +203,12 @@ export default function AdminPage() {
               value={assignReviewerId}
               onChange={(event) => setAssignReviewerId(event.target.value)}
               placeholder="Reviewer user ID"
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+              className="input"
               required
             />
             <button
               type="submit"
-              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+              className="btn btn-primary"
             >
               Assign reviewer
             </button>
@@ -221,13 +221,13 @@ export default function AdminPage() {
               value={paymentJobId}
               onChange={(event) => setPaymentJobId(event.target.value)}
               placeholder="Job ID"
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+              className="input"
               required
             />
             <select
               value={paymentStatus}
               onChange={(event) => setPaymentStatus(event.target.value)}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+              className="select"
             >
               <option value="pending">Pending</option>
               <option value="paid">Paid</option>
@@ -235,25 +235,25 @@ export default function AdminPage() {
             </select>
             <button
               type="submit"
-              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+              className="btn btn-primary"
             >
               Update payment
             </button>
           </form>
         </SectionCard>
         <SectionCard title="Maintenance cleanup">
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-[var(--color-muted)]">
             Expire stale invites and draft locks.
           </p>
           <button
             type="button"
             onClick={handleCleanup}
-            className="mt-3 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+            className="btn btn-primary mt-3"
           >
             Run cleanup
           </button>
           {cleanupResult && (
-            <div className="mt-3 text-xs text-slate-600">
+            <div className="mt-3 text-xs text-[var(--color-muted)]">
               Expired invites: {cleanupResult.expired_invites} • Expired locks:{" "}
               {cleanupResult.expired_locks}
             </div>
@@ -262,27 +262,27 @@ export default function AdminPage() {
       </div>
 
       <SectionCard title="All projects">
-        <div className="space-y-2 text-sm text-slate-600">
+        <div className="space-y-2 text-sm text-[var(--color-muted)]">
           {projects.map((project) => (
-            <div key={project.id} className="rounded-xl border border-slate-200 px-3 py-2">
+            <div key={project.id} className="rounded-xl border border-[var(--color-border)] px-3 py-2">
               #{project.id} • {project.title} • {project.visibility}
             </div>
           ))}
           {projects.length === 0 && (
-            <div className="text-slate-400">No projects found.</div>
+            <div className="text-[var(--color-muted)]">No projects found.</div>
           )}
         </div>
       </SectionCard>
 
       <SectionCard title="Plagiarism jobs">
-        <div className="space-y-2 text-sm text-slate-600">
+        <div className="space-y-2 text-sm text-[var(--color-muted)]">
           {jobs.map((job) => (
-            <div key={job.id} className="rounded-xl border border-slate-200 px-3 py-2">
-              <div className="font-medium text-slate-900">
+            <div key={job.id} className="rounded-xl border border-[var(--color-border)] px-3 py-2">
+              <div className="font-medium text-[var(--color-text)]">
                 Job #{job.id} • {job.is_public ? "Public" : `Project #${job.project_id}`} •{" "}
                 {job.status}
               </div>
-              <div className="text-xs text-slate-500">
+              <div className="text-xs text-[var(--color-muted)]">
                 Payment: {job.payment_status} •{" "}
                 {formatCurrency(job.amount_cents, job.currency)}
                 {job.requester_email ? ` • ${job.requester_email}` : ""}
@@ -294,7 +294,7 @@ export default function AdminPage() {
             </div>
           ))}
           {jobs.length === 0 && (
-            <div className="text-slate-400">No jobs queued.</div>
+            <div className="text-[var(--color-muted)]">No jobs queued.</div>
           )}
         </div>
       </SectionCard>

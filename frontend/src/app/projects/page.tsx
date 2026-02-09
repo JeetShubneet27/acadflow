@@ -71,7 +71,7 @@ export default function ProjectsPage() {
 
   if (!user) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
+      <div className="card text-sm text-[var(--color-muted)]">
         Log in to view your projects.
       </div>
     );
@@ -81,14 +81,14 @@ export default function ProjectsPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Projects</h1>
-          <p className="text-sm text-slate-600">
+          <h1 className="text-2xl font-semibold text-[var(--color-text)]">Projects</h1>
+          <p className="text-sm text-[var(--color-muted)]">
             Manage your research projects and collaborations.
           </p>
         </div>
         <Link
           href="/projects/new"
-          className="rounded-full bg-slate-900 px-5 py-2 text-sm font-semibold text-white"
+          className="btn btn-primary"
         >
           New project
         </Link>
@@ -109,12 +109,12 @@ export default function ProjectsPage() {
             {invites.map((invite) => (
               <div
                 key={invite.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] px-4 py-3 text-sm"
               >
                 <div>
                   Project #{invite.project_id} • {invite.membership_role}
                   {invite.expires_at && (
-                    <div className="text-xs text-slate-400">
+                    <div className="text-xs text-[var(--color-muted)]">
                       Expires: {new Date(invite.expires_at).toLocaleString()}
                     </div>
                   )}
@@ -122,13 +122,13 @@ export default function ProjectsPage() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => respondInvite(invite.id, "accepted")}
-                    className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white"
+                    className="btn btn-primary btn-xs"
                   >
                     Accept
                   </button>
                   <button
                     onClick={() => respondInvite(invite.id, "rejected")}
-                    className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700"
+                    className="btn btn-secondary btn-xs"
                   >
                     Decline
                   </button>
@@ -143,18 +143,18 @@ export default function ProjectsPage() {
           title="Invitation history"
           description="Track previous invite decisions."
         >
-          <div className="space-y-3 text-sm text-slate-600">
+          <div className="space-y-3 text-sm text-[var(--color-muted)]">
             {inviteHistory.map((invite) => (
               <div
                 key={invite.id}
-                className="rounded-xl border border-slate-200 px-4 py-3"
+                className="rounded-xl border border-[var(--color-border)] px-4 py-3"
               >
                 Project #{invite.project_id} • {invite.membership_role} •{" "}
                 {invite.status}
                 {(invite.accepted_at ||
                   invite.rejected_at ||
                   invite.revoked_at) && (
-                  <div className="text-xs text-slate-400">
+                  <div className="text-xs text-[var(--color-muted)]">
                     Updated:{" "}
                     {new Date(
                       invite.accepted_at ||
@@ -175,9 +175,9 @@ export default function ProjectsPage() {
         description="Projects you own or contribute to."
       >
         {isLoading ? (
-          <div className="text-sm text-slate-500">Loading projects...</div>
+          <div className="text-sm text-[var(--color-muted)]">Loading projects...</div>
         ) : projects.length === 0 ? (
-          <div className="text-sm text-slate-500">
+          <div className="text-sm text-[var(--color-muted)]">
             No projects yet. Create one to get started.
           </div>
         ) : (
@@ -186,15 +186,15 @@ export default function ProjectsPage() {
               <Link
                 key={project.id}
                 href={`/projects/${project.id}`}
-                className="flex flex-col gap-1 rounded-xl border border-slate-200 px-4 py-3 text-sm hover:border-slate-300"
+                className="flex flex-col gap-1 rounded-xl border border-[var(--color-border)] px-4 py-3 text-sm hover:bg-[var(--color-surface-muted)]"
               >
-                <div className="font-semibold text-slate-900">
+                <div className="font-semibold text-[var(--color-text)]">
                   {project.title}
                 </div>
-                <div className="text-slate-500">
+                <div className="text-[var(--color-muted)]">
                   {project.abstract || "No abstract yet."}
                 </div>
-                <div className="text-xs text-slate-400">
+                <div className="text-xs text-[var(--color-muted)]">
                   Visibility: {project.visibility}
                 </div>
               </Link>

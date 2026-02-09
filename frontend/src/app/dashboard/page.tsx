@@ -57,12 +57,12 @@ export default function DashboardPage() {
   }, [user]);
 
   if (isLoading) {
-    return <div className="text-sm text-slate-500">Loading session...</div>;
+    return <div className="text-sm text-[var(--color-muted)]">Loading session...</div>;
   }
 
   if (!user) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
+      <div className="card text-sm text-[var(--color-muted)]">
         Please log in to view your dashboard.
       </div>
     );
@@ -71,10 +71,10 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-semibold text-slate-900">
+        <h1 className="text-3xl font-semibold text-[var(--color-text)]">
           Welcome back, {user.full_name}
         </h1>
-        <p className="mt-2 text-sm text-slate-600">
+        <p className="mt-2 text-sm text-[var(--color-muted)]">
           Role: <span className="font-semibold">{user.role}</span>
         </p>
       </div>
@@ -88,7 +88,7 @@ export default function DashboardPage() {
           title="Active projects"
           description="Projects you own or collaborate on."
         >
-          <div className="text-3xl font-semibold text-slate-900">
+          <div className="text-3xl font-semibold text-[var(--color-text)]">
             {projects.length}
           </div>
         </SectionCard>
@@ -96,7 +96,7 @@ export default function DashboardPage() {
           title="Plagiarism jobs"
           description="Jobs awaiting review or completed."
         >
-          <div className="text-3xl font-semibold text-slate-900">
+          <div className="text-3xl font-semibold text-[var(--color-text)]">
             {jobs.length}
           </div>
         </SectionCard>
@@ -104,7 +104,7 @@ export default function DashboardPage() {
           title="Assigned reviews"
           description="Your pending and submitted reviews."
         >
-          <div className="text-3xl font-semibold text-slate-900">
+          <div className="text-3xl font-semibold text-[var(--color-text)]">
             {user.role === "faculty" ? reviews.length : "—"}
           </div>
         </SectionCard>

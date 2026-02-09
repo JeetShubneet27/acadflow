@@ -67,7 +67,7 @@ export default function ReviewsPage() {
 
   if (!user) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
+      <div className="card text-sm text-[var(--color-muted)]">
         Log in to view your reviews.
       </div>
     );
@@ -79,7 +79,7 @@ export default function ReviewsPage() {
         title="Faculty reviewer workspace"
         description="Only faculty can access assigned review submissions."
       >
-        <div className="text-sm text-slate-600">
+        <div className="text-sm text-[var(--color-muted)]">
           Faculty members can accept and submit review assignments.
         </div>
       </SectionCard>
@@ -89,8 +89,8 @@ export default function ReviewsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Faculty reviews</h1>
-        <p className="text-sm text-slate-600">
+        <h1 className="text-2xl font-semibold text-[var(--color-text)]">Faculty reviews</h1>
+        <p className="text-sm text-[var(--color-muted)]">
           Submit scores and feedback for assigned manuscripts.
         </p>
       </div>
@@ -103,9 +103,9 @@ export default function ReviewsPage() {
 
       <SectionCard title="Assigned reviews">
         {isLoading ? (
-          <div className="text-sm text-slate-500">Loading reviews...</div>
+          <div className="text-sm text-[var(--color-muted)]">Loading reviews...</div>
         ) : reviews.length === 0 ? (
-          <div className="text-sm text-slate-500">
+          <div className="text-sm text-[var(--color-muted)]">
             No reviews assigned right now.
           </div>
         ) : (
@@ -113,12 +113,12 @@ export default function ReviewsPage() {
             {reviews.map((review) => (
               <div
                 key={review.id}
-                className="rounded-xl border border-slate-200 p-4 text-sm"
+                className="rounded-xl border border-[var(--color-border)] p-4 text-sm"
               >
-                <div className="font-semibold text-slate-900">
+                <div className="font-semibold text-[var(--color-text)]">
                   Project #{review.project_id}
                 </div>
-                <div className="text-xs text-slate-500">
+                <div className="text-xs text-[var(--color-muted)]">
                   Status: {review.status}
                 </div>
                 {review.status !== "submitted" ? (
@@ -138,7 +138,7 @@ export default function ReviewsPage() {
                           },
                         }))
                       }
-                      className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                      className="input"
                     />
                     <textarea
                       placeholder="Feedback"
@@ -152,18 +152,18 @@ export default function ReviewsPage() {
                           },
                         }))
                       }
-                      className="min-h-[90px] w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                      className="textarea min-h-[90px]"
                     />
                     <button
                       type="button"
                       onClick={() => handleSubmit(review.id)}
-                      className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+                      className="btn btn-primary"
                     >
                       Submit review
                     </button>
                   </div>
                 ) : (
-                  <div className="mt-3 text-sm text-slate-600">
+                  <div className="mt-3 text-sm text-[var(--color-muted)]">
                     Score: {review.score} • {review.comments || "No comments"}
                   </div>
                 )}

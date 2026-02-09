@@ -354,10 +354,10 @@ export default function PlagiarismPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">
+        <h1 className="text-2xl font-semibold text-[var(--color-text)]">
           Plagiarism checks
         </h1>
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-[var(--color-muted)]">
           Submit manuscripts for human-reviewed similarity checks.
         </p>
       </div>
@@ -378,14 +378,14 @@ export default function PlagiarismPage() {
             value={publicName}
             onChange={(event) => setPublicName(event.target.value)}
             placeholder="Full name (optional)"
-            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+            className="input"
           />
           <input
             type="email"
             value={publicEmail}
             onChange={(event) => setPublicEmail(event.target.value)}
             placeholder="Email address"
-            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+            className="input"
             required
           />
           <input
@@ -396,17 +396,17 @@ export default function PlagiarismPage() {
           />
           <button
             type="submit"
-            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white md:col-span-2"
+            className="btn btn-primary md:col-span-2"
           >
             Submit for review
           </button>
         </form>
         {publicResponse && (
-          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-            <p className="font-semibold text-slate-900">
+          <div className="mt-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4 text-sm text-[var(--color-text)]">
+            <p className="font-semibold text-[var(--color-text)]">
               Submission received • Job #{publicResponse.id}
             </p>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-[var(--color-muted)]">
               Save your access token to track status and download the report.
             </p>
             <div className="mt-3 grid gap-2 text-xs">
@@ -428,11 +428,11 @@ export default function PlagiarismPage() {
                 type="button"
                 onClick={handlePublicPayment}
                 disabled={isPaying}
-                className="rounded-full bg-slate-900 px-5 py-2 text-xs font-semibold text-white disabled:opacity-60"
+                className="btn btn-primary btn-xs disabled:opacity-60"
               >
                 {isPaying ? "Opening gateway..." : "Pay with Razorpay"}
               </button>
-              <p className="text-[11px] text-slate-400">
+              <p className="text-[11px] text-[var(--color-muted)]">
                 Pay via UPI, card, or netbanking. You will be redirected after
                 payment.
               </p>
@@ -451,29 +451,29 @@ export default function PlagiarismPage() {
             value={publicLookupId}
             onChange={(event) => setPublicLookupId(event.target.value)}
             placeholder="Job ID"
-            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+            className="input w-auto"
           />
           <input
             type="text"
             value={publicLookupToken}
             onChange={(event) => setPublicLookupToken(event.target.value)}
             placeholder="Access token"
-            className="min-w-[220px] flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"
+            className="input min-w-[220px] flex-1"
           />
           <button
             type="button"
             onClick={handlePublicLookup}
-            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+            className="btn btn-primary"
           >
             Check status
           </button>
         </div>
         {publicStatus && (
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-600">
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] px-4 py-3 text-sm text-[var(--color-muted)]">
             <div>
               Job #{publicStatus.id} • {publicStatus.status} • Payment{" "}
               {publicStatus.payment_status}
-              <div className="text-xs text-slate-400">
+              <div className="text-xs text-[var(--color-muted)]">
                 {formatCurrency(publicStatus.amount_cents, publicStatus.currency)}
               </div>
             </div>
@@ -486,28 +486,28 @@ export default function PlagiarismPage() {
                     publicStatus.report_filename,
                   )
                 }
-                className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700"
+                className="btn btn-secondary btn-xs"
               >
                 Download report
               </button>
             ) : (
-              <span className="text-xs text-slate-400">Report pending</span>
+              <span className="text-xs text-[var(--color-muted)]">Report pending</span>
             )}
           </div>
         )}
         {publicStatus &&
           publicStatus.payment_status === "pending" &&
           !publicStatus.report_filename && (
-            <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-600">
+            <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-xs text-[var(--color-muted)]">
               <button
                 type="button"
                 onClick={handlePublicPayment}
                 disabled={isPaying}
-                className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white disabled:opacity-60"
+                className="btn btn-primary btn-xs disabled:opacity-60"
               >
                 {isPaying ? "Opening gateway..." : "Pay with Razorpay"}
               </button>
-              <span className="text-[11px] text-slate-400">
+              <span className="text-[11px] text-[var(--color-muted)]">
                 Complete payment to access the report once it is ready.
               </span>
             </div>
@@ -525,13 +525,13 @@ export default function PlagiarismPage() {
               value={projectId}
               onChange={(event) => setProjectId(event.target.value)}
               placeholder="Project ID"
-              className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+              className="input w-auto"
               required
             />
             <input type="file" name="plagiarism" className="text-sm" required />
             <button
               type="submit"
-              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+              className="btn btn-primary"
             >
               Submit
             </button>
@@ -550,13 +550,13 @@ export default function PlagiarismPage() {
               value={reportJobId}
               onChange={(event) => setReportJobId(event.target.value)}
               placeholder="Job ID"
-              className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+              className="input w-auto"
               required
             />
             <input type="file" name="report" className="text-sm" required />
             <button
               type="submit"
-              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+              className="btn btn-primary"
             >
               Upload report
             </button>
@@ -567,23 +567,23 @@ export default function PlagiarismPage() {
       {user && (
         <SectionCard title="Recent plagiarism jobs">
           {isLoading ? (
-            <div className="text-sm text-slate-500">Loading jobs...</div>
+            <div className="text-sm text-[var(--color-muted)]">Loading jobs...</div>
           ) : jobs.length === 0 ? (
-            <div className="text-sm text-slate-500">
+            <div className="text-sm text-[var(--color-muted)]">
               No jobs submitted yet.
             </div>
           ) : (
-            <div className="space-y-3 text-sm text-slate-600">
+            <div className="space-y-3 text-sm text-[var(--color-muted)]">
               {jobs.map((job) => (
                 <div
                   key={job.id}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-3"
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] px-4 py-3"
                 >
                   <div>
                     Job #{job.id} •{" "}
                     {job.project_id ? `Project #${job.project_id}` : "Public"} •{" "}
                     {job.status}
-                    <div className="text-xs text-slate-400">
+                    <div className="text-xs text-[var(--color-muted)]">
                       Payment: {job.payment_status} •{" "}
                       {formatCurrency(job.amount_cents, job.currency)}
                     </div>
@@ -592,7 +592,7 @@ export default function PlagiarismPage() {
                     <button
                       type="button"
                       onClick={() => downloadReport(job.id, job.report_filename)}
-                      className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700"
+                      className="btn btn-secondary btn-xs"
                     >
                       Download report
                     </button>
@@ -601,12 +601,12 @@ export default function PlagiarismPage() {
                       type="button"
                       onClick={() => handleProjectPayment(job.id)}
                       disabled={payingJobId === job.id}
-                      className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white disabled:opacity-60"
+                      className="btn btn-primary btn-xs disabled:opacity-60"
                     >
                       {payingJobId === job.id ? "Opening..." : "Pay now"}
                     </button>
                   ) : (
-                    <span className="text-xs text-slate-400">
+                    <span className="text-xs text-[var(--color-muted)]">
                       Report pending
                     </span>
                   )}
