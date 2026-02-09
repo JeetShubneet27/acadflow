@@ -51,6 +51,8 @@ def _create_otp(db: Session, user: User, purpose: str) -> EmailOTP:
             subject="AcadFlow verification code",
             body=f"Your AcadFlow verification code is {code}. It expires in {settings.otp_expiry_minutes} minutes.",
         )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to send OTP") from exc
     return otp
@@ -60,6 +62,12 @@ def _create_otp(db: Session, user: User, purpose: str) -> EmailOTP:
 def signup(payload: UserCreate, db: Session = Depends(get_db)) -> OtpChallenge:
     existing = db.query(User).filter(User.email == payload.email).first()
     if existing:
+        if not existing.is_email_verified:
+            _create_otp(db, existing, purpose="signup")
+            return OtpChallenge(
+                email=existing.email,
+                expires_in=settings.otp_expiry_minutes * 60,
+            )
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
     role = payload.role or RoleEnum.student
     if role == RoleEnum.reviewer:
