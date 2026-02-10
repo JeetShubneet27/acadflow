@@ -5,6 +5,7 @@ from app.api.routes import (
     annotations,
     audit,
     auth,
+    conferences,
     drafts,
     maintenance,
     news,
@@ -39,6 +40,7 @@ def create_app() -> FastAPI:
     app.include_router(reviews.router)
     app.include_router(plagiarism.router)
     app.include_router(news.router)
+    app.include_router(conferences.router)
     app.include_router(workspace.router)
     app.include_router(annotations.router)
     app.include_router(audit.router)

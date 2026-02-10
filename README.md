@@ -119,6 +119,11 @@ AcadFlow includes a workspace for Word (DOC/DOCX) and LaTeX manuscripts:
 Users can complete a profile with bio, institution, department, and research
 interests from `/profile`.
 
+## Conference listings
+
+AcadFlow aggregates upcoming research conference calls and deadlines from
+WikiCFP. Use `/conferences` to search by keyword.
+
 ### LaTeX PDF preview
 
 To enable PDF previews, install the `tectonic` binary in your backend runtime and set:

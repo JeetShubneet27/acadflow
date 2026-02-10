@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 
 const navLinks = [
   { href: "/news", label: "News" },
+  { href: "/conferences", label: "Conferences" },
   { href: "/dashboard", label: "Dashboard" },
   { href: "/profile", label: "Profile" },
   { href: "/projects", label: "Projects" },
@@ -76,6 +77,12 @@ export default function Navigation() {
                 className="text-sm font-medium text-[var(--color-muted)] hover:text-[var(--color-text)]"
               >
                 News
+              </Link>
+              <Link
+                href="/conferences"
+                className="text-sm font-medium text-[var(--color-muted)] hover:text-[var(--color-text)]"
+              >
+                Conferences
               </Link>
               <Link
                 href="/login"
