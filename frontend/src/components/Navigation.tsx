@@ -19,11 +19,12 @@ const navLinks = [
 export default function Navigation() {
   const { user, isLoading, logout } = useAuth();
   const pathname = usePathname();
+  const homeHref = user ? "/dashboard" : "/";
 
   return (
     <nav className="border-b border-[var(--color-border)] bg-[var(--color-surface)]">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <Link href="/" className="text-xl font-semibold text-[var(--color-text)]">
+        <Link href={homeHref} className="text-xl font-semibold text-[var(--color-text)]">
           AcadFlow
         </Link>
         <div className="flex items-center gap-4">

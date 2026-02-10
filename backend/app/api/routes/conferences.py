@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import json
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -12,6 +13,7 @@ router = APIRouter(tags=["conferences"])
 CONFERENCE_CACHE: dict[str, dict[str, object]] = {}
 CONFERENCE_TTL = timedelta(minutes=30)
 WIKICFP_RSS = "https://www.wikicfp.com/cfp/rss"
+OPENALEX_SOURCES = "https://api.openalex.org/sources"
 
 
 def _fetch_feed(url: str) -> bytes:
@@ -64,6 +66,37 @@ def _parse_feed(data: bytes) -> list[dict]:
     return items
 
 
+def _fetch_openalex(keyword: str) -> list[dict]:
+    params = urllib.parse.urlencode(
+        {
+            "filter": f"type:conference,display_name.search:{keyword}",
+            "sort": "works_count:desc",
+            "per-page": 20,
+        }
+    )
+    data = _fetch_feed(f"{OPENALEX_SOURCES}?{params}")
+    payload = json.loads(data.decode("utf-8"))
+    results = payload.get("results", [])
+    items: list[dict] = []
+    for entry in results:
+        title = entry.get("display_name")
+        url = entry.get("homepage_url") or entry.get("id")
+        if not title or not url:
+            continue
+        location = entry.get("country_code") or ""
+        items.append(
+            {
+                "title": title,
+                "url": url,
+                "conference_date": "Check website",
+                "submission_deadline": "Check website",
+                "location": location,
+                "source": "OpenAlex",
+            }
+        )
+    return items
+
+
 @router.get("/conferences")
 def get_conferences(
     keyword: str = Query("research", min_length=2, max_length=60),
@@ -81,10 +114,17 @@ def get_conferences(
         cached_items = cache.get("items", []) if cache else []
         if cached_items:
             return {"items": cached_items, "warning": str(exc.detail)}
-        return {
-            "items": [],
-            "warning": "Conference feed is temporarily unavailable.",
-        }
+        try:
+            items = _fetch_openalex(keyword)
+            return {
+                "items": items[:30],
+                "warning": "WikiCFP is unavailable. Showing OpenAlex conference sources.",
+            }
+        except Exception:
+            return {
+                "items": [],
+                "warning": "Conference feed is temporarily unavailable.",
+            }
 
     CONFERENCE_CACHE[keyword] = {
         "items": items[:30],

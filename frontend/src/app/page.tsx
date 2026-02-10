@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 
 const audienceContent = {
   student: [
@@ -18,7 +20,15 @@ const audienceContent = {
 };
 
 export default function Home() {
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
   const [audience, setAudience] = useState<"student" | "faculty">("student");
+
+  useEffect(() => {
+    if (!isLoading && user) {
+      router.replace("/dashboard");
+    }
+  }, [user, isLoading, router]);
 
   return (
     <div className="grid gap-10 lg:grid-cols-[1.3fr_0.7fr]">
