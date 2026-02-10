@@ -9,10 +9,19 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user, get_db, require_roles
 from app.core.config import settings
 from app.models.enums import InviteStatus, MemberStatus, MembershipRole, ProjectVisibility
+from app.models.audit_event import AuditEvent
+from app.models.draft import Draft
+from app.models.draft_annotation import DraftAnnotation
+from app.models.draft_lock import DraftLock
+from app.models.plagiarism import PlagiarismJob
 from app.models.project import Project
 from app.models.project_invite import ProjectInvite
 from app.models.project_member import ProjectMember
+from app.models.review import Review
 from app.models.user import User
+from app.models.workspace_document import WorkspaceDocument
+from app.models.workspace_lock import WorkspaceLock
+from app.models.workspace_revision import WorkspaceRevision
 from app.schemas.invite import InviteAction, InviteCreate, InviteOut
 from app.schemas.project import (
     ProjectCreate,
@@ -210,6 +219,67 @@ def update_visibility(
     )
     db.commit()
     return project
+
+
+@router.delete("/projects/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_project(
+    project_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    project = _get_project(db, project_id)
+    if current_user.role.value != "faculty" and project.owner_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+
+    draft_ids = [
+        draft_id
+        for (draft_id,) in db.query(Draft.id).filter(Draft.project_id == project_id).all()
+    ]
+    if draft_ids:
+        db.query(DraftAnnotation).filter(DraftAnnotation.draft_id.in_(draft_ids)).delete(
+            synchronize_session=False
+        )
+        db.query(DraftLock).filter(DraftLock.draft_id.in_(draft_ids)).delete(
+            synchronize_session=False
+        )
+        db.query(PlagiarismJob).filter(PlagiarismJob.draft_id.in_(draft_ids)).delete(
+            synchronize_session=False
+        )
+        db.query(Draft).filter(Draft.id.in_(draft_ids)).delete(synchronize_session=False)
+
+    workspace_doc_ids = [
+        doc_id
+        for (doc_id,) in db.query(WorkspaceDocument.id)
+        .filter(WorkspaceDocument.project_id == project_id)
+        .all()
+    ]
+    if workspace_doc_ids:
+        db.query(WorkspaceLock).filter(WorkspaceLock.document_id.in_(workspace_doc_ids)).delete(
+            synchronize_session=False
+        )
+        db.query(WorkspaceRevision).filter(WorkspaceRevision.document_id.in_(workspace_doc_ids)).delete(
+            synchronize_session=False
+        )
+        db.query(WorkspaceDocument).filter(WorkspaceDocument.id.in_(workspace_doc_ids)).delete(
+            synchronize_session=False
+        )
+
+    db.query(Review).filter(Review.project_id == project_id).delete(synchronize_session=False)
+    db.query(ProjectInvite).filter(ProjectInvite.project_id == project_id).delete(
+        synchronize_session=False
+    )
+    db.query(ProjectMember).filter(ProjectMember.project_id == project_id).delete(
+        synchronize_session=False
+    )
+    db.query(PlagiarismJob).filter(PlagiarismJob.project_id == project_id).delete(
+        synchronize_session=False
+    )
+    db.query(AuditEvent).filter(AuditEvent.project_id == project_id).delete(
+        synchronize_session=False
+    )
+    db.delete(project)
+    db.commit()
+    return None
 
 
 @router.get("/projects/{project_id}/members", response_model=list[ProjectMemberOut])

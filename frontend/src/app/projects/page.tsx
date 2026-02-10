@@ -11,6 +11,7 @@ type Project = {
   title: string;
   abstract?: string;
   visibility: string;
+  owner_id: number;
   created_at: string;
 };
 
@@ -32,6 +33,7 @@ export default function ProjectsPage() {
   const [inviteHistory, setInviteHistory] = useState<Invite[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [deletingProjectId, setDeletingProjectId] = useState<number | null>(null);
 
   const load = async () => {
     try {
@@ -66,6 +68,24 @@ export default function ProjectsPage() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to update invite");
+    }
+  };
+
+  const handleDeleteProject = async (projectId: number) => {
+    const confirmed = window.confirm(
+      "Delete this project and all related data? This cannot be undone.",
+    );
+    if (!confirmed) {
+      return;
+    }
+    setDeletingProjectId(projectId);
+    try {
+      await apiFetch(`/projects/${projectId}`, { method: "DELETE" });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to delete project");
+    } finally {
+      setDeletingProjectId(null);
     }
   };
 
@@ -183,21 +203,35 @@ export default function ProjectsPage() {
         ) : (
           <div className="space-y-3">
             {projects.map((project) => (
-              <Link
+              <div
                 key={project.id}
-                href={`/projects/${project.id}`}
-                className="flex flex-col gap-1 rounded-xl border border-[var(--color-border)] px-4 py-3 text-sm hover:bg-[var(--color-surface-muted)]"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] px-4 py-3 text-sm"
               >
-                <div className="font-semibold text-[var(--color-text)]">
-                  {project.title}
-                </div>
-                <div className="text-[var(--color-muted)]">
-                  {project.abstract || "No abstract yet."}
-                </div>
-                <div className="text-xs text-[var(--color-muted)]">
-                  Visibility: {project.visibility}
-                </div>
-              </Link>
+                <Link
+                  href={`/projects/${project.id}`}
+                  className="flex-1 space-y-1"
+                >
+                  <div className="font-semibold text-[var(--color-text)]">
+                    {project.title}
+                  </div>
+                  <div className="text-[var(--color-muted)]">
+                    {project.abstract || "No abstract yet."}
+                  </div>
+                  <div className="text-xs text-[var(--color-muted)]">
+                    Visibility: {project.visibility}
+                  </div>
+                </Link>
+                {(user?.role === "faculty" || user?.id === project.owner_id) && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteProject(project.id)}
+                    disabled={deletingProjectId === project.id}
+                    className="btn btn-secondary btn-xs disabled:opacity-60"
+                  >
+                    {deletingProjectId === project.id ? "Deleting..." : "Delete"}
+                  </button>
+                )}
+              </div>
             ))}
           </div>
         )}
