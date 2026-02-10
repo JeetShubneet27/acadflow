@@ -48,7 +48,7 @@ export default function NewsPage() {
         </div>
       )}
 
-      <SectionCard>
+      <SectionCard title="Latest headlines">
         {isLoading ? (
           <div className="text-sm text-[var(--color-muted)]">Loading news...</div>
         ) : items.length === 0 ? (
