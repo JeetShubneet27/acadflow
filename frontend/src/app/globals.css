@@ -1,0 +1,109 @@
+@import "tailwindcss";
+
+:root {
+  --color-bg: #f5f7fb;
+  --color-surface: #ffffff;
+  --color-surface-muted: #eef2f8;
+  --color-border: #e1e6f0;
+  --color-text: #101828;
+  --color-muted: #475467;
+  --color-primary: #3f5bd9;
+  --color-on-primary: #ffffff;
+  --color-accent: #101828;
+}
+
+[data-theme="dark"] {
+  --color-bg: #0b0f1a;
+  --color-surface: #121827;
+  --color-surface-muted: #1b2234;
+  --color-border: #2a3448;
+  --color-text: #f5f7ff;
+  --color-muted: #9aa4bf;
+  --color-primary: #7c9bff;
+  --color-on-primary: #0b0f1a;
+  --color-accent: #f5f7ff;
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+@layer components {
+  .card {
+    @apply rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] p-6 shadow-sm transition duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md;
+  }
+
+  .card-muted {
+    @apply rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-6;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition duration-200 ease-out hover:-translate-y-px;
+  }
+
+  .btn-primary {
+    @apply bg-[var(--color-primary)] text-[var(--color-on-primary)] shadow-sm hover:opacity-90;
+  }
+
+  .btn-secondary {
+    @apply border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-surface-muted)];
+  }
+
+  .btn-ghost {
+    @apply text-[var(--color-muted)] hover:text-[var(--color-text)];
+  }
+
+  .btn-xs {
+    @apply px-3 py-1 text-xs;
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm text-[var(--color-text)] placeholder:text-[var(--color-muted)];
+  }
+
+  .textarea {
+    @apply w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm text-[var(--color-text)] placeholder:text-[var(--color-muted)];
+  }
+
+  .select {
+    @apply w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm text-[var(--color-text)];
+  }
+
+  .text-muted {
+    @apply text-[var(--color-muted)];
+  }
+}
+
+@layer utilities {
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-up {
+    animation: fade-up 0.4s ease-out both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fade-up {
+      animation: none;
+    }
+  }
+}

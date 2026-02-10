@@ -1,0 +1,241 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import SectionCard from "@/components/SectionCard";
+import { useAuth } from "@/context/AuthContext";
+import { apiFetch } from "@/lib/api";
+
+type Project = {
+  id: number;
+  title: string;
+  abstract?: string;
+  visibility: string;
+  owner_id: number;
+  created_at: string;
+};
+
+type Invite = {
+  id: number;
+  project_id: number;
+  status: string;
+  membership_role: string;
+  expires_at?: string | null;
+  accepted_at?: string | null;
+  rejected_at?: string | null;
+  revoked_at?: string | null;
+};
+
+export default function ProjectsPage() {
+  const { user } = useAuth();
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [invites, setInvites] = useState<Invite[]>([]);
+  const [inviteHistory, setInviteHistory] = useState<Invite[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [deletingProjectId, setDeletingProjectId] = useState<number | null>(null);
+
+  const load = async () => {
+    try {
+      setIsLoading(true);
+      const [projectData, inviteData] = await Promise.all([
+        apiFetch<Project[]>("/projects"),
+        apiFetch<Invite[]>("/projects/invites"),
+      ]);
+      setProjects(projectData);
+      setInvites(inviteData.filter((invite) => invite.status === "pending"));
+      setInviteHistory(inviteData.filter((invite) => invite.status !== "pending"));
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load projects");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      load();
+    }
+  }, [user]);
+
+  const respondInvite = async (inviteId: number, status: string) => {
+    try {
+      await apiFetch(`/projects/invites/${inviteId}`, {
+        method: "PUT",
+        body: JSON.stringify({ status }),
+      });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to update invite");
+    }
+  };
+
+  const handleDeleteProject = async (projectId: number) => {
+    const confirmed = window.confirm(
+      "Delete this project and all related data? This cannot be undone.",
+    );
+    if (!confirmed) {
+      return;
+    }
+    setDeletingProjectId(projectId);
+    try {
+      await apiFetch(`/projects/${projectId}`, { method: "DELETE" });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to delete project");
+    } finally {
+      setDeletingProjectId(null);
+    }
+  };
+
+  if (!user) {
+    return (
+      <div className="card text-sm text-[var(--color-muted)]">
+        Log in to view your projects.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-[var(--color-text)]">Projects</h1>
+          <p className="text-sm text-[var(--color-muted)]">
+            Manage your research projects and collaborations.
+          </p>
+        </div>
+        <Link
+          href="/projects/new"
+          className="btn btn-primary"
+        >
+          New project
+        </Link>
+      </div>
+
+      {error && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      {invites.length > 0 && (
+        <SectionCard
+          title="Pending invitations"
+          description="Respond to collaboration invites."
+        >
+          <div className="space-y-3">
+            {invites.map((invite) => (
+              <div
+                key={invite.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] px-4 py-3 text-sm"
+              >
+                <div>
+                  Project #{invite.project_id} • {invite.membership_role}
+                  {invite.expires_at && (
+                    <div className="text-xs text-[var(--color-muted)]">
+                      Expires: {new Date(invite.expires_at).toLocaleString()}
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => respondInvite(invite.id, "accepted")}
+                    className="btn btn-primary btn-xs"
+                  >
+                    Accept
+                  </button>
+                  <button
+                    onClick={() => respondInvite(invite.id, "rejected")}
+                    className="btn btn-secondary btn-xs"
+                  >
+                    Decline
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </SectionCard>
+      )}
+      {inviteHistory.length > 0 && (
+        <SectionCard
+          title="Invitation history"
+          description="Track previous invite decisions."
+        >
+          <div className="space-y-3 text-sm text-[var(--color-muted)]">
+            {inviteHistory.map((invite) => (
+              <div
+                key={invite.id}
+                className="rounded-xl border border-[var(--color-border)] px-4 py-3"
+              >
+                Project #{invite.project_id} • {invite.membership_role} •{" "}
+                {invite.status}
+                {(invite.accepted_at ||
+                  invite.rejected_at ||
+                  invite.revoked_at) && (
+                  <div className="text-xs text-[var(--color-muted)]">
+                    Updated:{" "}
+                    {new Date(
+                      invite.accepted_at ||
+                        invite.rejected_at ||
+                        invite.revoked_at ||
+                        "",
+                    ).toLocaleString()}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </SectionCard>
+      )}
+
+      <SectionCard
+        title="Active projects"
+        description="Projects you own or contribute to."
+      >
+        {isLoading ? (
+          <div className="text-sm text-[var(--color-muted)]">Loading projects...</div>
+        ) : projects.length === 0 ? (
+          <div className="text-sm text-[var(--color-muted)]">
+            No projects yet. Create one to get started.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {projects.map((project) => (
+              <div
+                key={project.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--color-border)] px-4 py-3 text-sm"
+              >
+                <Link
+                  href={`/projects/${project.id}`}
+                  className="flex-1 space-y-1"
+                >
+                  <div className="font-semibold text-[var(--color-text)]">
+                    {project.title}
+                  </div>
+                  <div className="text-[var(--color-muted)]">
+                    {project.abstract || "No abstract yet."}
+                  </div>
+                  <div className="text-xs text-[var(--color-muted)]">
+                    Visibility: {project.visibility}
+                  </div>
+                </Link>
+                {(user?.role === "faculty" || user?.id === project.owner_id) && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteProject(project.id)}
+                    disabled={deletingProjectId === project.id}
+                    className="btn btn-secondary btn-xs disabled:opacity-60"
+                  >
+                    {deletingProjectId === project.id ? "Deleting..." : "Delete"}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </SectionCard>
+    </div>
+  );
+}

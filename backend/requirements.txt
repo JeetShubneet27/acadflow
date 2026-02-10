@@ -1,0 +1,15 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
+pydantic
+pydantic-settings
+email-validator
+razorpay
+alembic
+argon2-cffi
+psycopg2-binary
+diff-match-patch
+weasyprint
