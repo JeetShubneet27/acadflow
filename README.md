@@ -121,8 +121,8 @@ interests from `/profile`.
 
 ## Conference listings
 
-AcadFlow aggregates upcoming research conference calls and deadlines from
-WikiCFP. Use `/conferences` to search by keyword.
+Faculty admins can add upcoming research conferences and deadlines from the
+admin dashboard. Use `/conferences` to search by keyword.
 
 ### LaTeX PDF preview
 

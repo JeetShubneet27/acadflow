@@ -24,6 +24,7 @@ from app.schemas.project import (
     ProjectVisibilityUpdate,
 )
 from app.schemas.review import ReviewAssign, ReviewOut, ReviewSubmit
+from app.schemas.conference import ConferenceCreate, ConferenceOut
 from app.schemas.user import UserCreate, UserOut, UserProfileUpdate, UserRoleUpdate
 from app.schemas.workspace import (
     WorkspaceDocumentCreate,
@@ -69,6 +70,8 @@ __all__ = [
     "ReviewAssign",
     "ReviewOut",
     "ReviewSubmit",
+    "ConferenceCreate",
+    "ConferenceOut",
     "UserCreate",
     "UserOut",
     "UserProfileUpdate",

@@ -7,21 +7,24 @@ import { apiFetch } from "@/lib/api";
 
 type ConferenceItem = {
   title: string;
-  url: string;
-  conference_date: string;
-  submission_deadline: string;
+  url?: string | null;
+  conference_date?: string | null;
+  submission_deadline?: string | null;
   location?: string;
   source?: string;
+  website?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  description?: string | null;
 };
 
 export default function ConferencesPage() {
   const { user } = useAuth();
   const [items, setItems] = useState<ConferenceItem[]>([]);
-  const [keyword, setKeyword] = useState("research");
-  const [query, setQuery] = useState("research");
+  const [keyword, setKeyword] = useState("");
+  const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [warning, setWarning] = useState<string | null>(null);
 
   const load = async (activeKeyword: string) => {
     if (!user) {
@@ -30,11 +33,10 @@ export default function ConferencesPage() {
     }
     setIsLoading(true);
     try {
-      const response = await apiFetch<{ items: ConferenceItem[]; warning?: string }>(
-        `/conferences?keyword=${encodeURIComponent(activeKeyword)}`,
+      const response = await apiFetch<ConferenceItem[]>(
+        `/conferences?q=${encodeURIComponent(activeKeyword)}`,
       );
-      setItems(response.items || []);
-      setWarning(response.warning || null);
+      setItems(response || []);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load conferences");
@@ -49,9 +51,6 @@ export default function ConferencesPage() {
 
   const handleSearch = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!keyword.trim()) {
-      return;
-    }
     setQuery(keyword.trim());
   };
 
@@ -93,13 +92,7 @@ export default function ConferencesPage() {
           {error}
         </div>
       )}
-      {warning && !error && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
-          {warning}
-        </div>
-      )}
-
-      <SectionCard title={`Results for “${query}”`}>
+      <SectionCard title={query ? `Results for “${query}”` : "All conferences"}>
         {isLoading ? (
           <div className="text-sm text-[var(--color-muted)]">Loading conferences...</div>
         ) : items.length === 0 ? (
@@ -110,27 +103,36 @@ export default function ConferencesPage() {
           <div className="space-y-4 text-sm text-[var(--color-muted)]">
             {items.map((item) => (
               <a
-                key={`${item.url}-${item.title}`}
-                href={item.url}
+                key={`${item.title}-${item.website ?? item.url ?? ""}`}
+                href={item.website || item.url || "#"}
                 target="_blank"
                 rel="noreferrer"
                 className="block rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-[var(--color-text)]"
               >
                 <div className="font-semibold">{item.title}</div>
                 <div className="mt-1 text-xs text-[var(--color-muted)]">
-                  {item.source || "Source"}
-                  {item.location ? ` • ${item.location}` : ""}
+                  {item.location ? `${item.location} • ` : ""}
+                  {item.website ? "Official site" : "Details"}
                 </div>
                 <div className="mt-3 grid gap-2 text-xs text-[var(--color-muted)] md:grid-cols-2">
                   <div>
                     <span className="font-semibold">Conference date:</span>{" "}
-                    {item.conference_date}
+                    {item.start_date
+                      ? item.end_date
+                        ? `${item.start_date} → ${item.end_date}`
+                        : item.start_date
+                      : "TBA"}
                   </div>
                   <div>
                     <span className="font-semibold">Submission deadline:</span>{" "}
-                    {item.submission_deadline}
+                    {item.submission_deadline || "TBA"}
                   </div>
                 </div>
+                {item.description && (
+                  <div className="mt-3 text-xs text-[var(--color-muted)]">
+                    {item.description}
+                  </div>
+                )}
               </a>
             ))}
           </div>
