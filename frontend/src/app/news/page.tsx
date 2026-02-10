@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import SectionCard from "@/components/SectionCard";
+import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
 
 type NewsItem = {
@@ -12,12 +13,17 @@ type NewsItem = {
 };
 
 export default function NewsPage() {
+  const { user } = useAuth();
   const [items, setItems] = useState<NewsItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
       try {
         const response = await apiFetch<{ items: NewsItem[] }>("/news/trending");
         setItems(response.items || []);
@@ -29,7 +35,15 @@ export default function NewsPage() {
       }
     };
     load();
-  }, []);
+  }, [user]);
+
+  if (!user) {
+    return (
+      <div className="card text-sm text-[var(--color-muted)]">
+        Log in to view trending research news.
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

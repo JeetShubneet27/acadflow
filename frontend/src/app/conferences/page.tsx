@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import SectionCard from "@/components/SectionCard";
+import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/api";
 
 type ConferenceItem = {
@@ -14,6 +15,7 @@ type ConferenceItem = {
 };
 
 export default function ConferencesPage() {
+  const { user } = useAuth();
   const [items, setItems] = useState<ConferenceItem[]>([]);
   const [keyword, setKeyword] = useState("research");
   const [query, setQuery] = useState("research");
@@ -21,6 +23,10 @@ export default function ConferencesPage() {
   const [error, setError] = useState<string | null>(null);
 
   const load = async (activeKeyword: string) => {
+    if (!user) {
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     try {
       const response = await apiFetch<{ items: ConferenceItem[] }>(
@@ -37,7 +43,7 @@ export default function ConferencesPage() {
 
   useEffect(() => {
     load(query);
-  }, [query]);
+  }, [query, user]);
 
   const handleSearch = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -46,6 +52,14 @@ export default function ConferencesPage() {
     }
     setQuery(keyword.trim());
   };
+
+  if (!user) {
+    return (
+      <div className="card text-sm text-[var(--color-muted)]">
+        Log in to browse upcoming conferences.
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

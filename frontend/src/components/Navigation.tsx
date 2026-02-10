@@ -73,18 +73,6 @@ export default function Navigation() {
           ) : (
             <>
               <Link
-                href="/news"
-                className="text-sm font-medium text-[var(--color-muted)] hover:text-[var(--color-text)]"
-              >
-                News
-              </Link>
-              <Link
-                href="/conferences"
-                className="text-sm font-medium text-[var(--color-muted)] hover:text-[var(--color-text)]"
-              >
-                Conferences
-              </Link>
-              <Link
                 href="/login"
                 className="text-sm font-medium text-[var(--color-muted)] hover:text-[var(--color-text)]"
               >
