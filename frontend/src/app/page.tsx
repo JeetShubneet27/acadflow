@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { apiFetch } from "@/lib/api";
+import { useState } from "react";
 
 const audienceContent = {
   student: [
@@ -20,43 +19,6 @@ const audienceContent = {
 
 export default function Home() {
   const [audience, setAudience] = useState<"student" | "faculty">("student");
-  const [news, setNews] = useState<
-    { title: string; url: string; published_at?: string; source?: string }[]
-  >([]);
-  const [newsError, setNewsError] = useState<string | null>(null);
-  const [conferences, setConferences] = useState<
-    {
-      title: string;
-      url: string;
-      conference_date: string;
-      submission_deadline: string;
-      location?: string;
-      source?: string;
-    }[]
-  >([]);
-  const [conferenceError, setConferenceError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const response = await apiFetch<{ items: typeof news }>("/news/trending");
-        setNews(response.items.slice(0, 4));
-      } catch (err) {
-        setNewsError(err instanceof Error ? err.message : "Unable to load news");
-      }
-      try {
-        const response = await apiFetch<{ items: typeof conferences }>(
-          "/conferences?keyword=research",
-        );
-        setConferences(response.items.slice(0, 4));
-      } catch (err) {
-        setConferenceError(
-          err instanceof Error ? err.message : "Unable to load conferences",
-        );
-      }
-    };
-    load();
-  }, []);
 
   return (
     <div className="grid gap-10 lg:grid-cols-[1.3fr_0.7fr]">
@@ -103,79 +65,6 @@ export default function Home() {
             AcadFlow provides a single system for research collaboration, peer
             review, and plagiarism verification—without sacrificing academic rigor.
           </p>
-        </div>
-        <div className="card">
-          <div className="flex items-center justify-between gap-4">
-            <h2 className="text-lg font-semibold text-[var(--color-text)]">
-              Trending research news
-            </h2>
-            <a href="/news" className="text-xs text-[var(--color-muted)]">
-              View all
-            </a>
-          </div>
-          {newsError ? (
-            <p className="mt-3 text-sm text-red-600">{newsError}</p>
-          ) : news.length === 0 ? (
-            <p className="mt-3 text-sm text-[var(--color-muted)]">
-              Loading updates...
-            </p>
-          ) : (
-            <div className="mt-4 space-y-3 text-sm text-[var(--color-muted)]">
-              {news.map((item) => (
-                <a
-                  key={item.url}
-                  href={item.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[var(--color-text)]"
-                >
-                  <div className="font-medium">{item.title}</div>
-                  <div className="text-xs text-[var(--color-muted)]">
-                    {item.source || "Source"}{" "}
-                    {item.published_at ? `• ${item.published_at}` : ""}
-                  </div>
-                </a>
-              ))}
-            </div>
-          )}
-        </div>
-        <div className="card">
-          <div className="flex items-center justify-between gap-4">
-            <h2 className="text-lg font-semibold text-[var(--color-text)]">
-              Upcoming conferences
-            </h2>
-            <a href="/conferences" className="text-xs text-[var(--color-muted)]">
-              Search all
-            </a>
-          </div>
-          {conferenceError ? (
-            <p className="mt-3 text-sm text-red-600">{conferenceError}</p>
-          ) : conferences.length === 0 ? (
-            <p className="mt-3 text-sm text-[var(--color-muted)]">
-              Loading upcoming calls...
-            </p>
-          ) : (
-            <div className="mt-4 space-y-3 text-sm text-[var(--color-muted)]">
-              {conferences.map((item) => (
-                <a
-                  key={item.url}
-                  href={item.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="block rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[var(--color-text)]"
-                >
-                  <div className="font-medium">{item.title}</div>
-                  <div className="text-xs text-[var(--color-muted)]">
-                    {item.source || "Source"}
-                    {item.location ? ` • ${item.location}` : ""}
-                  </div>
-                  <div className="mt-2 text-xs text-[var(--color-muted)]">
-                    Deadline: {item.submission_deadline}
-                  </div>
-                </a>
-              ))}
-            </div>
-          )}
         </div>
       </div>
       <div className="space-y-6">

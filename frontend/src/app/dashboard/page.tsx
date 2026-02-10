@@ -26,11 +26,31 @@ type Review = {
   status: string;
 };
 
+type NewsItem = {
+  title: string;
+  url: string;
+  published_at?: string;
+  source?: string;
+};
+
+type ConferenceItem = {
+  title: string;
+  url: string;
+  conference_date: string;
+  submission_deadline: string;
+  location?: string;
+  source?: string;
+};
+
 export default function DashboardPage() {
   const { user, isLoading } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [jobs, setJobs] = useState<PlagiarismJob[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [news, setNews] = useState<NewsItem[]>([]);
+  const [conferences, setConferences] = useState<ConferenceItem[]>([]);
+  const [newsError, setNewsError] = useState<string | null>(null);
+  const [conferenceError, setConferenceError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -51,6 +71,30 @@ export default function DashboardPage() {
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unable to load dashboard");
+      }
+      const [newsResult, conferenceResult] = await Promise.allSettled([
+        apiFetch<{ items: NewsItem[] }>("/news/trending"),
+        apiFetch<{ items: ConferenceItem[] }>("/conferences?keyword=research"),
+      ]);
+      if (newsResult.status === "fulfilled") {
+        setNews(newsResult.value.items.slice(0, 4));
+        setNewsError(null);
+      } else {
+        setNewsError(
+          newsResult.reason instanceof Error
+            ? newsResult.reason.message
+            : "Unable to load news",
+        );
+      }
+      if (conferenceResult.status === "fulfilled") {
+        setConferences(conferenceResult.value.items.slice(0, 4));
+        setConferenceError(null);
+      } else {
+        setConferenceError(
+          conferenceResult.reason instanceof Error
+            ? conferenceResult.reason.message
+            : "Unable to load conferences",
+        );
       }
     };
     load();
@@ -107,6 +151,71 @@ export default function DashboardPage() {
           <div className="text-3xl font-semibold text-[var(--color-text)]">
             {user.role === "faculty" ? reviews.length : "—"}
           </div>
+        </SectionCard>
+      </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <SectionCard
+          title="Trending research news"
+          description="Latest updates from leading research outlets."
+        >
+          {newsError ? (
+            <div className="text-sm text-red-600">{newsError}</div>
+          ) : news.length === 0 ? (
+            <div className="text-sm text-[var(--color-muted)]">
+              Loading news...
+            </div>
+          ) : (
+            <div className="space-y-3 text-sm text-[var(--color-muted)]">
+              {news.map((item) => (
+                <a
+                  key={item.url}
+                  href={item.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[var(--color-text)]"
+                >
+                  <div className="font-medium">{item.title}</div>
+                  <div className="text-xs text-[var(--color-muted)]">
+                    {item.source || "Source"}{" "}
+                    {item.published_at ? `• ${item.published_at}` : ""}
+                  </div>
+                </a>
+              ))}
+            </div>
+          )}
+        </SectionCard>
+        <SectionCard
+          title="Upcoming conferences"
+          description="Open calls and submission deadlines."
+        >
+          {conferenceError ? (
+            <div className="text-sm text-red-600">{conferenceError}</div>
+          ) : conferences.length === 0 ? (
+            <div className="text-sm text-[var(--color-muted)]">
+              Loading conferences...
+            </div>
+          ) : (
+            <div className="space-y-3 text-sm text-[var(--color-muted)]">
+              {conferences.map((item) => (
+                <a
+                  key={item.url}
+                  href={item.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[var(--color-text)]"
+                >
+                  <div className="font-medium">{item.title}</div>
+                  <div className="text-xs text-[var(--color-muted)]">
+                    {item.source || "Source"}
+                    {item.location ? ` • ${item.location}` : ""}
+                  </div>
+                  <div className="mt-2 text-xs text-[var(--color-muted)]">
+                    Deadline: {item.submission_deadline}
+                  </div>
+                </a>
+              ))}
+            </div>
+          )}
         </SectionCard>
       </div>
     </div>
