@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, Enum, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, Enum, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
@@ -17,6 +17,13 @@ class User(Base):
     role = Column(Enum(RoleEnum), nullable=False, default=RoleEnum.student)
     is_email_verified = Column(Boolean, nullable=False, default=False)
     email_verified_at = Column(DateTime, nullable=True)
+    bio = Column(Text, nullable=True)
+    institution = Column(String, nullable=True)
+    department = Column(String, nullable=True)
+    research_interests = Column(Text, nullable=True)
+    website = Column(String, nullable=True)
+    orcid = Column(String, nullable=True)
+    linkedin = Column(String, nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     owned_projects = relationship("Project", back_populates="owner")

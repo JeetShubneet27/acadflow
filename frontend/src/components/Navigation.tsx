@@ -6,7 +6,9 @@ import ThemeToggle from "@/components/ThemeToggle";
 import { useAuth } from "@/context/AuthContext";
 
 const navLinks = [
+  { href: "/news", label: "News" },
   { href: "/dashboard", label: "Dashboard" },
+  { href: "/profile", label: "Profile" },
   { href: "/projects", label: "Projects" },
   { href: "/drafts", label: "Drafts" },
   { href: "/reviews", label: "Reviews" },
@@ -69,6 +71,12 @@ export default function Navigation() {
             </>
           ) : (
             <>
+              <Link
+                href="/news"
+                className="text-sm font-medium text-[var(--color-muted)] hover:text-[var(--color-text)]"
+              >
+                News
+              </Link>
               <Link
                 href="/login"
                 className="text-sm font-medium text-[var(--color-muted)] hover:text-[var(--color-text)]"

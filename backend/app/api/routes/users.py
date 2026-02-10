@@ -1,14 +1,32 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db, require_roles
+from app.api.deps import get_current_user, get_db, require_roles
 from app.core.config import settings
 from app.models.enums import RoleEnum
 from app.models.user import User
-from app.schemas.user import UserOut, UserRoleUpdate
+from app.schemas.user import UserOut, UserProfileUpdate, UserRoleUpdate
 
 
 router = APIRouter(tags=["users"])
+
+
+@router.get("/profile", response_model=UserOut)
+def get_profile(current_user: User = Depends(get_current_user)) -> User:
+    return current_user
+
+
+@router.put("/profile", response_model=UserOut)
+def update_profile(
+    payload: UserProfileUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> User:
+    for field, value in payload.dict(exclude_unset=True).items():
+        setattr(current_user, field, value)
+    db.commit()
+    db.refresh(current_user)
+    return current_user
 
 
 @router.put("/users/{user_id}/role", response_model=UserOut)

@@ -7,6 +7,7 @@ from app.api.routes import (
     auth,
     drafts,
     maintenance,
+    news,
     plagiarism,
     projects,
     reviews,
@@ -37,6 +38,7 @@ def create_app() -> FastAPI:
     app.include_router(drafts.router)
     app.include_router(reviews.router)
     app.include_router(plagiarism.router)
+    app.include_router(news.router)
     app.include_router(workspace.router)
     app.include_router(annotations.router)
     app.include_router(audit.router)

@@ -18,6 +18,13 @@ export type AuthUser = {
   full_name: string;
   role: "student" | "faculty";
   created_at: string;
+  bio?: string | null;
+  institution?: string | null;
+  department?: string | null;
+  research_interests?: string | null;
+  website?: string | null;
+  orcid?: string | null;
+  linkedin?: string | null;
 };
 
 type AuthContextValue = {

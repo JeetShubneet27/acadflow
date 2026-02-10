@@ -114,6 +114,11 @@ AcadFlow includes a workspace for Word (DOC/DOCX) and LaTeX manuscripts:
 - Workspace documents support locks to avoid conflicting edits.
 - PDF previews for LaTeX/Word require server-side compilers (see below).
 
+## Profile dashboard
+
+Users can complete a profile with bio, institution, department, and research
+interests from `/profile`.
+
 ### LaTeX PDF preview
 
 To enable PDF previews, install the `tectonic` binary in your backend runtime and set:
