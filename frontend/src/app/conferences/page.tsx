@@ -21,6 +21,7 @@ export default function ConferencesPage() {
   const [query, setQuery] = useState("research");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
 
   const load = async (activeKeyword: string) => {
     if (!user) {
@@ -29,10 +30,11 @@ export default function ConferencesPage() {
     }
     setIsLoading(true);
     try {
-      const response = await apiFetch<{ items: ConferenceItem[] }>(
+      const response = await apiFetch<{ items: ConferenceItem[]; warning?: string }>(
         `/conferences?keyword=${encodeURIComponent(activeKeyword)}`,
       );
       setItems(response.items || []);
+      setWarning(response.warning || null);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load conferences");
@@ -89,6 +91,11 @@ export default function ConferencesPage() {
       {error && (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {error}
+        </div>
+      )}
+      {warning && !error && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
+          {warning}
         </div>
       )}
 

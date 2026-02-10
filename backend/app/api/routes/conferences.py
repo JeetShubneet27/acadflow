@@ -74,8 +74,17 @@ def get_conferences(
         return {"items": cache.get("items", [])}
 
     query = urllib.parse.urlencode({"keyword": keyword})
-    data = _fetch_feed(f"{WIKICFP_RSS}?{query}")
-    items = _parse_feed(data)
+    try:
+        data = _fetch_feed(f"{WIKICFP_RSS}?{query}")
+        items = _parse_feed(data)
+    except HTTPException as exc:
+        cached_items = cache.get("items", []) if cache else []
+        if cached_items:
+            return {"items": cached_items, "warning": str(exc.detail)}
+        return {
+            "items": [],
+            "warning": "Conference feed is temporarily unavailable.",
+        }
 
     CONFERENCE_CACHE[keyword] = {
         "items": items[:30],

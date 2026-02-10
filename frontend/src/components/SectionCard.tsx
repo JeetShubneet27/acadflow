@@ -12,7 +12,7 @@ export default function SectionCard({
   children,
 }: SectionCardProps) {
   return (
-    <section className="card">
+    <section className="card animate-fade-up">
       <div className="space-y-1">
         <h2 className="text-lg font-semibold text-[var(--color-text)]">{title}</h2>
         {description && <p className="text-sm text-[var(--color-muted)]">{description}</p>}
